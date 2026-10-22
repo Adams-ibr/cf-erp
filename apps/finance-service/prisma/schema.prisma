@@ -1,0 +1,676 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["finance", "public"]
+}
+
+model Account {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            AccountType
+  subType         AccountSubType?
+  parentId        String?
+  currency        String           @default("USD")
+  isControl       Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  normalBalance   NormalBalance
+  currentBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  openingBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  tenantId        String
+  branchId        String?
+  costCenterId    String?
+  profitCenterId  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  parent          Account?         @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children        Account[]        @relation("AccountHierarchy")
+  journalLines    JournalLine[]
+  budgets         Budget[]
+  costCenter      CostCenter?      @relation(fields: [costCenterId], references: [id])
+  profitCenter    ProfitCenter?    @relation(fields: [profitCenterId], references: [id])
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([parentId])
+  @@index([costCenterId])
+  @@index([profitCenterId])
+  @@index([isActive])
+}
+
+model JournalEntry {
+  id              String           @id @default(cuid())
+  code            String
+  reference       String?
+  type            JournalEntryType
+  status          JournalEntryStatus @default(DRAFT)
+  entryDate       DateTime
+  postingDate     DateTime?
+  period          String
+  fiscalYear      Int
+  description     String
+  totalDebit      Decimal          @default(0) @db.Decimal(18, 2)
+  totalCredit     Decimal          @default(0) @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  source          String?
+  sourceId        String?
+  sourceReference String?
+  postedBy        String?
+  postedAt        DateTime?
+  reversedBy      String?
+  reversedAt      DateTime?
+  reversalReason  String?
+  attachedFiles   String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  lines           JournalLine[]
+  approvals       JournalApproval[]
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([entryDate])
+  @@index([period])
+  @@index([fiscalYear])
+  @@index([source, sourceId])
+}
+
+model JournalLine {
+  id              String           @id @default(cuid())
+  journalEntryId  String
+  lineNumber      Int
+  accountId       String
+  description     String?
+  debitAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  creditAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  baseDebitAmount Decimal          @default(0) @db.Decimal(18, 2)
+  baseCreditAmount Decimal         @default(0) @db.Decimal(18, 2)
+  costCenterId    String?
+  profitCenterId  String?
+  projectId       String?
+  quantity        Decimal?         @db.Decimal(18, 4)
+  unit            String?
+  taxCode         String?
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  dimension1      String?
+  dimension2      String?
+  dimension3      String?
+  dimension4      String?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  journalEntry    JournalEntry     @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         Account          @relation(fields: [accountId], references: [id])
+  costCenter      CostCenter?      @relation(fields: [costCenterId], references: [id])
+  profitCenter    ProfitCenter?    @relation(fields: [profitCenterId], references: [id])
+
+  @@schema("finance")
+  @@unique([journalEntryId, lineNumber])
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@index([costCenterId])
+  @@index([profitCenterId])
+}
+
+model JournalApproval {
+  id              String           @id @default(cuid())
+  journalEntryId  String
+  level           Int
+  approverId      String
+  status          ApprovalStatus   @default(PENDING)
+  comments        String?
+  approvedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  journalEntry    JournalEntry     @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+
+  @@schema("finance")
+  @@index([journalEntryId])
+  @@index([approverId])
+  @@index([status])
+}
+
+model Ledger {
+  id              String           @id @default(cuid())
+  accountId       String
+  period          String
+  fiscalYear      Int
+  openingBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  debitTotal      Decimal          @default(0) @db.Decimal(18, 2)
+  creditTotal     Decimal          @default(0) @db.Decimal(18, 2)
+  closingBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  status          LedgerStatus     @default(OPEN)
+  closedAt        DateTime?
+  closedBy        String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  account         Account          @relation(fields: [accountId], references: [id])
+
+  @@schema("finance")
+  @@unique([accountId, period, fiscalYear])
+  @@index([tenantId])
+  @@index([fiscalYear])
+  @@index([period])
+  @@index([status])
+}
+
+model CostCenter {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  parentId        String?
+  managerId       String?
+  budgetAmount    Decimal?         @db.Decimal(18, 2)
+  actualAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  parent          CostCenter?      @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children        CostCenter[]     @relation("CostCenterHierarchy")
+  accounts        Account[]
+  budgets         Budget[]
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([parentId])
+  @@index([managerId])
+  @@index([isActive])
+}
+
+model ProfitCenter {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  managerId       String?
+  revenueTarget   Decimal?         @db.Decimal(18, 2)
+  actualRevenue   Decimal          @default(0) @db.Decimal(18, 2)
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  accounts        Account[]
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([managerId])
+  @@index([isActive])
+}
+
+model Budget {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            BudgetType
+  period          String
+  fiscalYear      Int
+  accountId       String?
+  costCenterId    String?
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  periodAmounts   Json?
+  status          BudgetStatus     @default(DRAFT)
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  account         Account?         @relation(fields: [accountId], references: [id])
+  costCenter      CostCenter?      @relation(fields: [costCenterId], references: [id])
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([fiscalYear])
+  @@index([status])
+  @@index([accountId])
+  @@index([costCenterId])
+}
+
+model FixedAsset {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  category        String
+  subCategory     String?
+  serialNumber    String?
+  modelNumber     String?
+  manufacturer    String?
+  purchaseDate    DateTime
+  purchaseCost    Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  salvageValue    Decimal          @default(0) @db.Decimal(18, 2)
+  usefulLife      Int
+  depreciationMethod DepreciationMethod
+  depreciationRate Decimal?        @db.Decimal(5, 4)
+  currentValue    Decimal          @default(0) @db.Decimal(18, 2)
+  accumulatedDepreciation Decimal @default(0) @db.Decimal(18, 2)
+  lastDepreciationDate DateTime?
+  nextDepreciationDate DateTime?
+  location        String?
+  custodianId     String?
+  status          AssetStatus      @default(ACTIVE)
+  condition       AssetCondition   @default(GOOD)
+  warrantyExpiry  DateTime?
+  insuranceValue  Decimal?         @db.Decimal(18, 2)
+  insurancePolicy String?
+  tenantId        String
+  branchId        String?
+  costCenterId    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  depreciationRecords DepreciationRecord[]
+  costCenter      CostCenter?      @relation(fields: [costCenterId], references: [id])
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([category])
+  @@index([status])
+  @@index([costCenterId])
+}
+
+model DepreciationRecord {
+  id              String           @id @default(cuid())
+  assetId         String
+  period          String
+  fiscalYear      Int
+  depreciationAmount Decimal      @db.Decimal(18, 2)
+  accumulatedDepreciation Decimal @db.Decimal(18, 2)
+  bookValue       Decimal          @db.Decimal(18, 2)
+  method          DepreciationMethod
+  rate            Decimal?         @db.Decimal(5, 4)
+  calculatedAt    DateTime
+  postedAt        DateTime?
+  postedBy        String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  asset           FixedAsset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@schema("finance")
+  @@index([assetId])
+  @@index([period, fiscalYear])
+  @@index([calculatedAt])
+}
+
+model TaxReturn {
+  id              String           @id @default(cuid())
+  code            String
+  type            TaxReturnType
+  period          String
+  fiscalYear      Int
+  status          TaxReturnStatus  @default(DRAFT)
+  dueDate         DateTime
+  filedDate       DateTime?
+  totalTaxable    Decimal          @default(0) @db.Decimal(18, 2)
+  totalTax        Decimal          @default(0) @db.Decimal(18, 2)
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  refundAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  filedBy         String?
+  filedAt         DateTime?
+  acknowledgedAt  DateTime?
+  acknowledgementRef String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([fiscalYear])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Reconciliation {
+  id              String           @id @default(cuid())
+  code            String
+  type            ReconciliationType
+  accountId       String
+  period          String
+  fiscalYear      Int
+  statementDate   DateTime
+  statementBalance Decimal         @db.Decimal(18, 2)
+  bookBalance     Decimal          @default(0) @db.Decimal(18, 2)
+  adjustedBalance Decimal          @default(0) @db.Decimal(18, 2)
+  variance        Decimal          @default(0) @db.Decimal(18, 2)
+  status          ReconciliationStatus @default(IN_PROGRESS)
+  reconciledBy    String?
+  reconciledAt    DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  items           Json?
+  notes           String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([accountId])
+  @@index([period, fiscalYear])
+  @@index([status])
+}
+
+model PeriodClose {
+  id              String           @id @default(cuid())
+  code            String
+  period          String
+  fiscalYear      Int
+  status          PeriodCloseStatus @default(OPEN)
+  openedAt        DateTime
+  openedBy        String
+  closedAt        DateTime?
+  closedBy        String?
+  closedVersion   Int              @default(0)
+  notes           String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("finance")
+  @@unique([tenantId, period, fiscalYear])
+  @@index([tenantId])
+  @@index([fiscalYear])
+  @@index([status])
+}
+
+model FinancialStatement {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            StatementType
+  period          String
+  fiscalYear      Int
+  data            Json
+  status          StatementStatus  @default(DRAFT)
+  generatedAt     DateTime?
+  generatedBy     String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("finance")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([period, fiscalYear])
+  @@index([status])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum AccountSubType {
+  CURRENT_ASSET
+  FIXED_ASSET
+  INTANGIBLE_ASSET
+  CURRENT_LIABILITY
+  LONG_TERM_LIABILITY
+  SHARE_CAPITAL
+  RETAINED_EARNINGS
+  OPERATING_REVENUE
+  NON_OPERATING_REVENUE
+  COST_OF_GOODS_SOLD
+  OPERATING_EXPENSE
+  NON_OPERATING_EXPENSE
+}
+
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum JournalEntryType {
+  STANDARD
+  REVERSING
+  RECURRING
+  ADJUSTING
+  CLOSING
+  OPENING
+  RECLASSIFICATION
+  CORRECTION
+  ACCRUAL
+  DEFERRAL
+  ALLOCATION
+  TRANSFER
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  REVERSED
+  VOIDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DELEGATED
+}
+
+enum LedgerStatus {
+  OPEN
+  CLOSED
+  LOCKED
+  ARCHIVED
+}
+
+enum BudgetType {
+  OPERATING
+  CAPITAL
+  CASH_FLOW
+  PROJECT
+  DEPARTMENT
+  ZERO_BASED
+  INCREMENTAL
+  ACTIVITY_BASED
+}
+
+enum BudgetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  DECLINING_BALANCE
+  DOUBLE_DECLINING
+  SUM_OF_YEARS_DIGITS
+  UNITS_OF_PRODUCTION
+  MACRS
+  CUSTOM
+}
+
+enum AssetStatus {
+  ACTIVE
+  IDLE
+  UNDER_MAINTENANCE
+  DISPOSED
+  SOLD
+  TRANSFERRED
+  STOLEN
+  LOST
+  IMPAIRED
+}
+
+enum AssetCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  SCRAP
+}
+
+enum TaxReturnType {
+  INCOME_TAX
+  VAT
+  GST
+  SALES_TAX
+  PAYROLL_TAX
+  PROPERTY_TAX
+  EXCISE_TAX
+  WITHHOLDING_TAX
+  CUSTOMS_DUTY
+}
+
+enum TaxReturnStatus {
+  DRAFT
+  IN_REVIEW
+  READY_TO_FILE
+  FILED
+  ACCEPTED
+  REJECTED
+  AMENDED
+  AUDITED
+}
+
+enum ReconciliationType {
+  BANK
+  CREDIT_CARD
+  PETTY_CASH
+  INTERCOMPANY
+  VENDOR
+  CUSTOMER
+  INVENTORY
+  FIXED_ASSETS
+  PAYROLL
+  TAX
+}
+
+enum ReconciliationStatus {
+  IN_PROGRESS
+  COMPLETED
+  VARIANCE
+  APPROVED
+  REJECTED
+}
+
+enum PeriodCloseStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  LOCKED
+  REOPENED
+}
+
+enum StatementType {
+  BALANCE_SHEET
+  INCOME_STATEMENT
+  CASH_FLOW
+  EQUITY_CHANGES
+  COMPREHENSIVE_INCOME
+  TRIAL_BALANCE
+  AGED_RECEIVABLES
+  AGED_PAYABLES
+}
+
+enum StatementStatus {
+  DRAFT
+  GENERATED
+  REVIEWED
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}

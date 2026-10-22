@@ -1,0 +1,953 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["agent", "public"]
+}
+
+model Supplier {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  tradeName       String?
+  type            SupplierType     @default(COMPANY)
+  status          SupplierStatus   @default(ACTIVE)
+  taxId           String?
+  vatNumber       String?
+  registrationNumber String?
+  website         String?
+  industry        String?
+  currency        String           @default("USD")
+  paymentTerms    Int              @default(30)
+  incoterm        Incoterm         @default(FOB)
+  portOfLoading   String?
+  portOfDischarge String?
+  riskRating      RiskRating       @default(LOW)
+  certifications  String[]         @default([])
+  notes           String?
+  addresses       SupplierAddress[]
+  contacts        SupplierContact[]
+  bankDetails     SupplierBankDetail[]
+  contracts       SupplierContract[]
+  performance     SupplierPerformance[]
+  commissions     Commission[]
+  communications  Communication[]
+  compliance      ComplianceRecord[]
+  tenantId        String
+  branchId        String?
+  assignedToId    String?
+  parentId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedToId])
+  @@index([parentId])
+  @@index([name])
+  @@index([taxId])
+  @@index([vatNumber])
+}
+
+model SupplierAddress {
+  id              String         @id @default(cuid())
+  type            AddressType    @default(BILLING)
+  line1           String
+  line2           String?
+  city            String
+  state           String?
+  postalCode      String
+  country         String
+  coordinates     Json?
+  isDefault       Boolean        @default(false)
+  supplierId      String
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean        @default(false)
+
+  supplier        Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([supplierId, type])
+  @@index([supplierId])
+  @@index([type])
+  @@index([country])
+  @@index([city])
+}
+
+model SupplierContact {
+  id              String       @id @default(cuid())
+  firstName       String
+  lastName        String
+  title           String?
+  department      String?
+  email           String?
+  phone           String?
+  mobile          String?
+  fax             String?
+  isPrimary       Boolean      @default(false)
+  isActive        Boolean      @default(true)
+  notes           String?
+  supplierId      String
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean      @default(false)
+
+  supplier        Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([supplierId])
+  @@index([email])
+  @@index([isPrimary])
+}
+
+model SupplierBankDetail {
+  id              String   @id @default(cuid())
+  bankName        String
+  accountName     String
+  accountNumber   String
+  iban            String?
+  swiftBic        String?
+  routingNumber   String?
+  branchName      String?
+  branchAddress   Json?
+  currency        String   @default("USD")
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  supplierId      String
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([supplierId])
+  @@index([currency])
+}
+
+model OverseasAgent {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  tradeName       String?
+  type            AgentType        @default(FREIGHT_FORWARDER)
+  status          AgentStatus      @default(ACTIVE)
+  licenseNumber   String?
+  licenseExpiry   DateTime?
+  taxId           String?
+  vatNumber       String?
+  registrationNumber String?
+  website         String?
+  industry        String?
+  currency        String           @default("USD")
+  paymentTerms    Int              @default(30)
+  preferredPort   String?
+  region          String
+  country         String
+  timeZone        String
+  language        String           @default("EN")
+  rating          Decimal?         @db.Decimal(3, 2)
+  contracts       AgentContract[]
+  performance     AgentPerformance[]
+  commissions     Commission[]
+  communications  Communication[]
+  compliance      ComplianceRecord[]
+  addresses       OverseasAgentAddress[]
+  contacts        OverseasAgentContact[]
+  bankDetails     OverseasAgentBankDetail[]
+  tenantId        String
+  branchId        String?
+  assignedToId    String?
+  parentId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedToId])
+  @@index([parentId])
+  @@index([country])
+  @@index([region])
+  @@index([name])
+}
+
+model OverseasAgentAddress {
+  id              String         @id @default(cuid())
+  type            AddressType    @default(OFFICE)
+  line1           String
+  line2           String?
+  city            String
+  state           String?
+  postalCode      String
+  country         String
+  coordinates     Json?
+  isDefault       Boolean        @default(false)
+  agentId         String
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean        @default(false)
+
+  agent           OverseasAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([agentId, type])
+  @@index([agentId])
+  @@index([type])
+  @@index([country])
+  @@index([city])
+}
+
+model OverseasAgentContact {
+  id              String       @id @default(cuid())
+  firstName       String
+  lastName        String
+  title           String?
+  department      String?
+  email           String?
+  phone           String?
+  mobile          String?
+  fax             String?
+  isPrimary       Boolean      @default(false)
+  isActive        Boolean      @default(true)
+  notes           String?
+  agentId         String
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean      @default(false)
+
+  agent           OverseasAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([agentId])
+  @@index([email])
+  @@index([isPrimary])
+}
+
+model OverseasAgentBankDetail {
+  id              String   @id @default(cuid())
+  bankName        String
+  accountName     String
+  accountNumber   String
+  iban            String?
+  swiftBic        String?
+  routingNumber   String?
+  branchName      String?
+  branchAddress   Json?
+  currency        String   @default("USD")
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  agentId         String
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+
+  agent           OverseasAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([agentId])
+  @@index([currency])
+}
+
+model Carrier {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            CarrierType
+  scac            String?
+  mcNumber        String?
+  dotNumber       String?
+  iataCode        String?
+  fmcNumber       String?
+  website         String?
+  email           String?
+  phone           String?
+  address         Json?
+  contactPerson   String?
+  contactEmail    String?
+  contactPhone    String?
+  paymentTerms    Int              @default(30)
+  currency        String           @default("USD")
+  creditLimit     Decimal          @default(0) @db.Decimal(18, 2)
+  rating          Decimal?         @db.Decimal(3, 2)
+  isPreferred     Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  contractStart   DateTime?
+  contractEnd     DateTime?
+  notes           String?
+  services        CarrierService[]
+  documents       CarrierDocument[]
+  contacts        CarrierContact[]
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@unique([tenantId, scac])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([isPreferred])
+}
+
+model CarrierService {
+  id              String           @id @default(cuid())
+  carrierId       String
+  serviceName     String
+  serviceCode     String?
+  mode            ShipmentMode
+  origin          String?
+  destination     String?
+  transitTime     Int?
+  frequency       String?
+  equipment       ContainerType[]
+  isActive        Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  carrier         Carrier          @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([carrierId])
+  @@index([mode])
+  @@index([serviceCode])
+}
+
+model CarrierContact {
+  id              String   @id @default(cuid())
+  carrierId       String
+  firstName       String
+  lastName        String
+  title           String?
+  department      String?
+  email           String?
+  phone           String?
+  mobile          String?
+  isPrimary       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  carrier         Carrier  @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([carrierId])
+  @@index([email])
+  @@index([isPrimary])
+}
+
+model CarrierDocument {
+  id              String   @id @default(cuid())
+  carrierId       String
+  type            DocumentType
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  expiryDate      DateTime?
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  carrier         Carrier  @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@index([carrierId])
+  @@index([type])
+  @@index([expiryDate])
+}
+
+model SupplierContract {
+  id              String           @id @default(cuid())
+  code            String
+  supplierId      String
+  type            ContractType
+  status          ContractStatus   @default(DRAFT)
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime?
+  autoRenew       Boolean          @default(false)
+  renewalNotice   Int              @default(30)
+  value           Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  paymentTerms    String?
+  terms           String?
+  clauses         Json?
+  signedBy        String?
+  signedAt        DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model AgentContract {
+  id              String           @id @default(cuid())
+  code            String
+  agentId         String
+  type            ContractType
+  status          ContractStatus   @default(DRAFT)
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime?
+  autoRenew       Boolean          @default(false)
+  renewalNotice   Int              @default(30)
+  value           Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  paymentTerms    String?
+  terms           String?
+  clauses         Json?
+  signedBy        String?
+  signedAt        DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  agent           OverseasAgent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([agentId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model CarrierContract {
+  id              String           @id @default(cuid())
+  code            String
+  carrierId       String
+  type            ContractType
+  status          ContractStatus   @default(DRAFT)
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime?
+  autoRenew       Boolean          @default(false)
+  renewalNotice   Int              @default(30)
+  value           Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  paymentTerms    String?
+  terms           String?
+  clauses         Json?
+  signedBy        String?
+  signedAt        DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  carrier         Carrier          @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([carrierId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model SupplierPerformance {
+  id              String           @id @default(cuid())
+  supplierId      String
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  onTimeDelivery  Decimal          @db.Decimal(5, 2)
+  defectRate      Decimal          @db.Decimal(5, 2)
+  orderAccuracy   Decimal          @db.Decimal(5, 2)
+  responsiveness  Decimal          @db.Decimal(5, 2)
+  communication   Decimal          @db.Decimal(5, 2)
+  overallRating   Decimal          @db.Decimal(5, 2)
+  totalOrders     Int
+  onTimeOrders    Int
+  defectiveOrders Int
+  totalValue      Decimal          @db.Decimal(18, 2)
+  disputes        Int
+  resolvedDisputes Int
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([supplierId, period])
+  @@index([supplierId])
+  @@index([period])
+}
+
+model AgentPerformance {
+  id              String           @id @default(cuid())
+  agentId         String
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  shipmentsHandled Int
+  onTimeDelivery  Decimal          @db.Decimal(5, 2)
+  damageRate      Decimal          @db.Decimal(5, 2)
+  claimRate       Decimal          @db.Decimal(5, 2)
+  responsiveness  Decimal          @db.Decimal(5, 2)
+  documentation   Decimal          @db.Decimal(5, 2)
+  overallRating   Decimal          @db.Decimal(5, 2)
+  totalRevenue    Decimal          @db.Decimal(18, 2)
+  commissionEarned Decimal         @db.Decimal(18, 2)
+  disputes        Int
+  resolvedDisputes Int
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  agent           OverseasAgent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@schema("agent")
+  @@unique([agentId, period])
+  @@index([agentId])
+  @@index([period])
+}
+
+model Commission {
+  id              String           @id @default(cuid())
+  code            String
+  agentId         String?
+  supplierId      String?
+  type            CommissionType
+  status          CommissionStatus @default(PENDING)
+  rate            Decimal          @db.Decimal(5, 4)
+  basis           CommissionBasis
+  currency        String           @default("USD")
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  shipmentId      String?
+  bookingId       String?
+  invoiceId       String?
+  calculatedAt    DateTime
+  approvedAt      DateTime?
+  approvedBy      String?
+  paidAt          DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  status          CommissionStatus @default(PENDING)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("agent")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([agentId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([period])
+}
+
+model Communication {
+  id              String           @id @default(cuid())
+  entityType      CommunicationEntityType
+  entityId        String
+  direction       CommunicationDirection
+  type            CommunicationType
+  subject         String
+  content         String
+  senderId        String?
+  recipientId     String?
+  senderEmail     String?
+  recipientEmail  String?
+  attachments     String[]         @default([])
+  status          CommunicationStatus @default(SENT)
+  sentAt          DateTime
+  readAt          DateTime?
+  repliedAt       DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("agent")
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([direction])
+  @@index([type])
+  @@index([sentAt])
+}
+
+model ComplianceRecord {
+  id              String           @id @default(cuid())
+  entityType      ComplianceEntityType
+  entityId        String
+  type            ComplianceType
+  status          ComplianceStatus @default(PENDING)
+  requirement     String
+  description     String?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  completedBy     String?
+  evidence        String[]         @default([])
+  notes           String?
+  riskLevel       RiskLevel
+  assignedTo      String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("agent")
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([type])
+  @@index([status])
+  @@index([dueDate])
+  @@index([riskLevel])
+}
+
+enum SupplierType {
+  COMPANY
+  INDIVIDUAL
+  AGENT
+  CARRIER
+  CUSTOMS_BROKER
+  WAREHOUSE
+  INSURANCE
+  BANK
+  GOVERNMENT
+  OTHER
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  ON_HOLD
+  BLOCKED
+  ARCHIVED
+}
+
+enum AgentType {
+  FREIGHT_FORWARDER
+  CUSTOMS_BROKER
+  SHIPPING_AGENT
+  PORT_AGENT
+  BUNKERING_AGENT
+  SURVEYOR
+  INSURANCE_AGENT
+  BANKING_AGENT
+  LEGAL_AGENT
+  GOVERNMENT_AGENT
+  OTHER
+}
+
+enum AgentStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  SUSPENDED
+  TERMINATED
+  ON_HOLD
+}
+
+enum CarrierType {
+  SHIPPING_LINE
+  AIRLINE
+  TRUCKING
+  RAIL
+  NVOCC
+  FREIGHT_FORWARDER
+  COURIER
+  MULTIMODAL
+}
+
+enum AddressType {
+  BILLING
+  SHIPPING
+  REGISTERED
+  WAREHOUSE
+  PICKUP
+  DELIVERY
+  OFFICE
+  FACTORY
+  PORT
+  OTHER
+}
+
+enum ContractType {
+  SERVICE_AGREEMENT
+  MASTER_SERVICE_AGREEMENT
+  AGENCY_AGREEMENT
+  CARRIER_CONTRACT
+  NDA
+  MOU
+  PARTNERSHIP
+  JOINT_VENTURE
+  SUBCONTRACT
+  OTHER
+}
+
+enum ContractStatus {
+  DRAFT
+  NEGOTIATING
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  RENEWED
+  SUSPENDED
+  DISPUTED
+}
+
+enum CarrierType {
+  SHIPPING_LINE
+  AIRLINE
+  TRUCKING
+  RAIL
+  NVOCC
+  FREIGHT_FORWARDER
+  COURIER
+  MULTIMODAL
+}
+
+enum ShipmentMode {
+  SEA_FCL
+  SEA_LCL
+  AIR
+  ROAD
+  RAIL
+  MULTIMODAL
+  COURIER
+}
+
+enum ContainerType {
+  DRY_20FT
+  DRY_40FT
+  DRY_40FT_HC
+  DRY_45FT_HC
+  REEFER_20FT
+  REEFER_40FT
+  REEFER_40FT_HC
+  OPEN_TOP_20FT
+  OPEN_TOP_40FT
+  FLAT_RACK_20FT
+  FLAT_RACK_40FT
+  TANK_20FT
+  TANK_40FT
+  SPECIAL
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+  TIERED
+  VOLUME_BASED
+  PER_SHIPMENT
+  PER_CONTAINER
+  PER_KG
+  PER_CBM
+  FLAT_FEE
+  MILESTONE
+}
+
+enum CommissionBasis {
+  REVENUE
+  PROFIT
+  FREIGHT
+  VOLUME
+  WEIGHT
+  CONTAINERS
+  SHIPMENTS
+}
+
+enum CommissionStatus {
+  PENDING
+  CALCULATED
+  APPROVED
+  PAID
+  DISPUTED
+  CANCELLED
+}
+
+enum CommunicationEntityType {
+  SUPPLIER
+  OVERSEAS_AGENT
+  CARRIER
+  CONTRACT
+  SHIPMENT
+  INVOICE
+  PAYMENT
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum CommunicationType {
+  EMAIL
+  PHONE
+  SMS
+  WHATSAPP
+  WECHAT
+  SLACK
+  TEAMS
+  MEETING
+  LETTER
+  FAX
+  PORTAL
+  OTHER
+}
+
+enum CommunicationStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  READ
+  REPLIED
+  FAILED
+  BOUNCED
+  BLOCKED
+}
+
+enum ComplianceEntityType {
+  SUPPLIER
+  OVERSEAS_AGENT
+  CARRIER
+  CONTRACT
+  SHIPMENT
+  INVOICE
+  PAYMENT
+}
+
+enum ComplianceType {
+  LICENSE
+  CERTIFICATION
+  INSURANCE
+  FINANCIAL_AUDIT
+  SECURITY_CLEARANCE
+  BACKGROUND_CHECK
+  SANCTIONS_SCREENING
+  EMBARGO_CHECK
+  ENVIRONMENTAL
+  LABOR_LAW
+  DATA_PROTECTION
+  ANTI_BRIBERY
+  CUSTOMS_COMPLIANCE
+  SAFETY
+  SECURITY
+  OTHER
+}
+
+enum ComplianceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  NON_COMPLIANT
+  WAIVED
+  EXEMPT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskRating {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}

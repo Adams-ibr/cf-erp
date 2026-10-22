@@ -1,0 +1,943 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["arap", "public"]
+}
+
+model ARInvoice {
+  id              String           @id @default(cuid())
+  code            String
+  invoiceId       String?
+  customerId      String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  creditAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  dueDate         DateTime
+  issueDate       DateTime
+  status          ARInvoiceStatus  @default(OPEN)
+  paymentTerms    Int              @default(30)
+  discountTerms   String?
+  discountDate    DateTime?
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  salesRepId      String?
+  collectorId     String?
+  collectionNotes String?
+  lastPaymentDate DateTime?
+  lastActivityDate DateTime?
+  disputeStatus   DisputeStatus    @default(NONE)
+  disputeAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  payments        ARPayment[]
+  creditMemos     ARCreditMemo[]
+  activities      ARActivity[]
+  disputes        ARDispute[]
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([issueDate])
+  @@index([salesRepId])
+  @@index([collectorId])
+}
+
+model ARPayment {
+  id              String           @id @default(cuid())
+  code            String
+  invoiceId       String
+  customerId      String
+  type            ARPaymentType
+  method          PaymentMethod
+  status          PaymentStatus    @default(PENDING)
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  reference       String?
+  transactionId   String?
+  paymentDate     DateTime
+  postedDate      DateTime?
+  bankReference   String?
+  batchId         String?
+  depositDate     DateTime?
+  fees            Decimal          @default(0) @db.Decimal(18, 2)
+  netAmount       Decimal          @db.Decimal(18, 2)
+  appliedAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  unappliedAmount Decimal          @default(0) @db.Decimal(18, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  invoice         ARInvoice        @relation(fields: [invoiceId], references: [id])
+  applications    PaymentApplication[]
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentDate])
+  @@index([postedDate])
+  @@index([batchId])
+}
+
+model PaymentApplication {
+  id              String           @id @default(cuid())
+  paymentId       String
+  invoiceId       String
+  appliedAmount   Decimal          @db.Decimal(18, 2)
+  appliedDate     DateTime
+  appliedBy       String
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  payment         ARPayment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice         ARInvoice        @relation(fields: [invoiceId], references: [id])
+
+  @@schema("arap")
+  @@unique([paymentId, invoiceId])
+  @@index([paymentId])
+  @@index([invoiceId])
+}
+
+model ARCreditMemo {
+  id              String           @id @default(cuid())
+  code            String
+  invoiceId       String?
+  customerId      String
+  type            CreditMemoType
+  status          CreditMemoStatus @default(DRAFT)
+  reason          String
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  appliedAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  issueDate       DateTime
+  appliedDate     DateTime?
+  voidedDate      DateTime?
+  voidReason      String?
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  applications    CreditMemoApplication[]
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+model CreditMemoApplication {
+  id              String           @id @default(cuid())
+  creditMemoId    String
+  invoiceId       String
+  appliedAmount   Decimal          @db.Decimal(18, 2)
+  appliedDate     DateTime
+  appliedBy       String
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  creditMemo      ARCreditMemo     @relation(fields: [creditMemoId], references: [id], onDelete: Cascade)
+  invoice         ARInvoice        @relation(fields: [invoiceId], references: [id])
+
+  @@schema("arap")
+  @@unique([creditMemoId, invoiceId])
+  @@index([creditMemoId])
+  @@index([invoiceId])
+}
+
+model ARActivity {
+  id              String           @id @default(cuid())
+  invoiceId       String
+  type            ARActivityType
+  description     String
+  userId          String
+  amount          Decimal?         @db.Decimal(18, 2)
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+
+  invoice         ARInvoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@schema("arap")
+  @@index([invoiceId])
+  @@index([type])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ARDispute {
+  id              String           @id @default(cuid())
+  invoiceId       String
+  code            String
+  type            DisputeType
+  status          DisputeStatus    @default(OPEN)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  openedBy        String
+  assignedTo      String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      DisputeResolution?
+  resolutionAmount Decimal?        @db.Decimal(18, 2)
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  invoice         ARInvoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+}
+
+model APBill {
+  id              String           @id @default(cuid())
+  code            String
+  billId          String?
+  vendorId        String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  creditAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  dueDate         DateTime
+  issueDate       DateTime
+  receiptDate     DateTime?
+  status          APBillStatus     @default(OPEN)
+  paymentTerms    Int              @default(30)
+  discountTerms   String?
+  discountDate    DateTime?
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  buyerId         String?
+  approverId      String?
+  approvalDate    DateTime?
+  approvedBy      String?
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  payments        APPayment[]
+  creditMemos     APCreditMemo[]
+  activities      APActivity[]
+  disputes        APDispute[]
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([issueDate])
+  @@index([receiptDate])
+  @@index([buyerId])
+  @@index([approverId])
+}
+
+model APPayment {
+  id              String           @id @default(cuid())
+  code            String
+  billId          String
+  vendorId        String
+  type            APPaymentType
+  method          PaymentMethod
+  status          PaymentStatus    @default(PENDING)
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  reference       String?
+  transactionId   String?
+  paymentDate     DateTime
+  postedDate      DateTime?
+  bankReference   String?
+  batchId         String?
+  checkNumber     String?
+  checkDate       DateTime?
+  fees            Decimal          @default(0) @db.Decimal(18, 2)
+  netAmount       Decimal          @db.Decimal(18, 2)
+  appliedAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  unappliedAmount Decimal          @default(0) @db.Decimal(18, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  bill            APBill           @relation(fields: [billId], references: [id])
+  applications    APPaymentApplication[]
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([billId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([paymentDate])
+  @@index([postedDate])
+  @@index([batchId])
+}
+
+model APPaymentApplication {
+  id              String           @id @default(cuid())
+  paymentId       String
+  billId          String
+  appliedAmount   Decimal          @db.Decimal(18, 2)
+  appliedDate     DateTime
+  appliedBy       String
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  payment         APPayment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  bill            APBill           @relation(fields: [billId], references: [id])
+
+  @@schema("arap")
+  @@unique([paymentId, billId])
+  @@index([paymentId])
+  @@index([billId])
+}
+
+model APCreditMemo {
+  id              String           @id @default(cuid())
+  code            String
+  billId          String?
+  vendorId        String
+  type            APCreditMemoType
+  status          CreditMemoStatus @default(DRAFT)
+  reason          String
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  appliedAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  issueDate       DateTime
+  appliedDate     DateTime?
+  voidedDate      DateTime?
+  voidReason      String?
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  applications    APCreditMemoApplication[]
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([billId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+model APCreditMemoApplication {
+  id              String           @id @default(cuid())
+  creditMemoId    String
+  billId          String
+  appliedAmount   Decimal          @db.Decimal(18, 2)
+  appliedDate     DateTime
+  appliedBy       String
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  creditMemo      APCreditMemo     @relation(fields: [creditMemoId], references: [id], onDelete: Cascade)
+  bill            APBill           @relation(fields: [billId], references: [id])
+
+  @@schema("arap")
+  @@unique([creditMemoId, billId])
+  @@index([creditMemoId])
+  @@index([billId])
+}
+
+model APActivity {
+  id              String           @id @default(cuid())
+  billId          String
+  type            APActivityType
+  description     String
+  userId          String
+  amount          Decimal?         @db.Decimal(18, 2)
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+
+  bill            APBill           @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@schema("arap")
+  @@index([billId])
+  @@index([type])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model APDispute {
+  id              String           @id @default(cuid())
+  billId          String
+  code            String
+  type            DisputeType
+  status          DisputeStatus    @default(OPEN)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  openedBy        String
+  assignedTo      String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      DisputeResolution?
+  resolutionAmount Decimal?        @db.Decimal(18, 2)
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  bill            APBill           @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([billId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+}
+
+model AgingReport {
+  id              String           @id @default(cuid())
+  code            String
+  type            AgingType
+  asOfDate        DateTime
+  currency        String           @default("USD")
+  current         Decimal          @default(0) @db.Decimal(18, 2)
+  days1to30       Decimal          @default(0) @db.Decimal(18, 2)
+  days31to60      Decimal          @default(0) @db.Decimal(18, 2)
+  days61to90      Decimal          @default(0) @db.Decimal(18, 2)
+  days91to120     Decimal          @default(0) @db.Decimal(18, 2)
+  daysOver120     Decimal          @default(0) @db.Decimal(18, 2)
+  totalOutstanding Decimal         @db.Decimal(18, 2)
+  tenantId        String
+  branchId        String?
+  generatedAt     DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([asOfDate])
+}
+
+model CollectionAction {
+  id              String           @id @default(cuid())
+  invoiceId       String
+  customerId      String
+  type            CollectionActionType
+  status          CollectionActionStatus @default(PLANNED)
+  priority        Priority
+  scheduledAt     DateTime
+  completedAt     DateTime?
+  assignedTo      String
+  completedBy     String?
+  result          CollectionResult?
+  nextActionDate  DateTime?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([scheduledAt])
+}
+
+model PaymentBatch {
+  id              String           @id @default(cuid())
+  code            String
+  type            BatchType
+  status          BatchStatus      @default(OPEN)
+  totalAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  paymentCount    Int              @default(0)
+  currency        String           @default("USD")
+  bankAccountId   String?
+  depositDate     DateTime?
+  createdBy       String
+  postedBy        String?
+  postedAt        DateTime?
+  closedBy        String?
+  closedAt        DateTime?
+  notes           String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([depositDate])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Vendor {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("arap")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+enum ARInvoiceStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  CREDIT_HELD
+  DISPUTED
+  CANCELLED
+  WRITTEN_OFF
+  CLOSED
+}
+
+enum ARPaymentType {
+  RECEIPT
+  REFUND
+  ADVANCE
+  DEPOSIT
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+  NSF
+  CHARGEBACK
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+  CHECK
+  LETTER_OF_CREDIT
+  BANK_GUARANTEE
+  ONLINE_PAYMENT
+  CRYPTO
+  ACH
+  WIRE
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIAL
+  CANCELLED
+  ON_HOLD
+  DISPUTED
+}
+
+enum CreditMemoType {
+  RETURN
+  DISCOUNT
+  REBATE
+  ADJUSTMENT
+  CANCELLATION
+  WRITE_OFF
+  OVERPAYMENT
+  DAMAGE
+  SHORTAGE
+  PRICING_ERROR
+  OTHER
+}
+
+enum CreditMemoStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  APPLIED
+  PARTIALLY_APPLIED
+  VOIDED
+  REJECTED
+}
+
+enum APBillStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  HOLD
+  DISPUTED
+  CANCELLED
+  VOIDED
+  CLOSED
+}
+
+enum APPaymentType {
+  PAYMENT
+  REFUND
+  ADVANCE
+  DEPOSIT
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+  VOID
+  STOP_PAYMENT
+}
+
+enum CreditMemoType {
+  RETURN
+  DISCOUNT
+  REBATE
+  ADJUSTMENT
+  CANCELLATION
+  WRITE_OFF
+  OVERPAYMENT
+  DAMAGE
+  SHORTAGE
+  PRICING_ERROR
+  OTHER
+}
+
+enum CreditMemoStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  APPLIED
+  PARTIALLY_APPLIED
+  VOIDED
+  REJECTED
+}
+
+enum APCreditMemoType {
+  RETURN
+  DISCOUNT
+  REBATE
+  ADJUSTMENT
+  CANCELLATION
+  WRITE_OFF
+  OVERBILLING
+  PRICING_ERROR
+  OTHER
+}
+
+enum CreditMemoStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  APPLIED
+  PARTIALLY_APPLIED
+  VOIDED
+  REJECTED
+}
+
+enum ARActivityType {
+  INVOICE_CREATED
+  INVOICE_SENT
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  CREDIT_MEMO_ISSUED
+  CREDIT_MEMO_APPLIED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  COLLECTION_CALL
+  COLLECTION_EMAIL
+  COLLECTION_LETTER
+  PROMISE_TO_PAY
+  PAYMENT_PLAN
+  WRITE_OFF
+  LEGAL_ACTION
+  OVERDUE_NOTICE
+  STATEMENT_SENT
+}
+
+enum APActivityType {
+  BILL_CREATED
+  BILL_RECEIVED
+  BILL_APPROVED
+  PAYMENT_MADE
+  PAYMENT_FAILED
+  CREDIT_MEMO_ISSUED
+  CREDIT_MEMO_APPLIED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  VENDOR_CALL
+  VENDOR_EMAIL
+  PAYMENT_PLAN
+  EXTENSION_REQUEST
+  EARLY_PAYMENT_DISCOUNT
+}
+
+enum DisputeType {
+  AMOUNT
+  QUANTITY
+  QUALITY
+  PRICING
+  TERMS
+  DELIVERY
+  DAMAGE
+  SHORTAGE
+  DUPLICATE
+  UNAUTHORIZED
+  OTHER
+}
+
+enum DisputeStatus {
+  NONE
+  OPEN
+  UNDER_REVIEW
+  NEGOTIATING
+  RESOLVED
+  ESCALATED
+  CLOSED
+  WITHDRAWN
+}
+
+enum DisputeResolution {
+  FULL_CREDIT
+  PARTIAL_CREDIT
+  PRICE_ADJUSTMENT
+  REPLACEMENT
+  RETURN
+  WRITE_OFF
+  SPLIT
+  SETTLED
+}
+
+enum ARPaymentType {
+  RECEIPT
+  REFUND
+  ADVANCE
+  DEPOSIT
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+  NSF
+  CHARGEBACK
+}
+
+enum APPaymentType {
+  PAYMENT
+  REFUND
+  ADVANCE
+  DEPOSIT
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+  VOID
+  STOP_PAYMENT
+}
+
+enum APCreditMemoType {
+  RETURN
+  DISCOUNT
+  REBATE
+  ADJUSTMENT
+  CANCELLATION
+  WRITE_OFF
+  OVERBILLING
+  PRICING_ERROR
+  OTHER
+}
+
+enum CreditMemoStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  APPLIED
+  PARTIALLY_APPLIED
+  VOIDED
+  REJECTED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  NEGOTIATING
+  RESOLVED
+  ESCALATED
+  CLOSED
+  WITHDRAWN
+}
+
+enum DisputeResolution {
+  FULL_CREDIT
+  PARTIAL_CREDIT
+  PRICE_ADJUSTMENT
+  REPLACEMENT
+  RETURN
+  WRITE_OFF
+  SPLIT
+  SETTLED
+}
+
+enum AgingType {
+  AR
+  AP
+  COMBINED
+}
+
+enum CollectionActionType {
+  PHONE_CALL
+  EMAIL
+  LETTER
+  SMS
+  VISIT
+  LEGAL_NOTICE
+  COURT_FILING
+  COLLECTION_AGENCY
+  WRITE_OFF
+  SETTLEMENT
+  PAYMENT_PLAN
+  DISPUTE_RESOLUTION
+}
+
+enum CollectionActionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+  RESCHEDULED
+}
+
+enum CollectionResult {
+  PAID_IN_FULL
+  PARTIAL_PAYMENT
+  PROMISE_TO_PAY
+  PAYMENT_PLAN
+  DISPUTE_RESOLVED
+  WRITE_OFF
+  LEGAL_ACTION
+  SETTLEMENT
+  NO_CONTACT
+  REFUSED
+  BANKRUPTCY
+  DECEASED
+  MOVED
+  OTHER
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum BatchType {
+  CHECKS
+  ACH
+  WIRE
+  CREDIT_CARD
+  CASH
+  MIXED
+}
+
+enum BatchStatus {
+  OPEN
+  IN_PROGRESS
+  POSTED
+  CLOSED
+  CANCELLED
+}

@@ -1,0 +1,522 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["tracking", "public"]
+}
+
+model TrackingEvent {
+  id              String              @id @default(cuid())
+  code            String
+  shipmentId      String
+  type            TrackingEventType
+  status          String
+  location        String
+  latitude        Decimal?            @db.Decimal(10, 8)
+  longitude       Decimal?            @db.Decimal(11, 8)
+  timestamp       DateTime
+  source          String
+  sourceReference String?
+  vesselId        String?
+  voyageId        String?
+  containerId     String?
+  equipmentId     String?
+  temperature     Decimal?            @db.Decimal(5, 2)
+  humidity        Decimal?            @db.Decimal(5, 2)
+  details         String?
+  metadata        Json?
+  isMilestone     Boolean             @default(false)
+  milestoneType   MilestoneType?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime            @default(now())
+
+  shipment        Shipment            @relation(fields: [shipmentId], references: [id])
+  vessel          Vessel?             @relation(fields: [vesselId], references: [id])
+  voyage          Voyage?             @relation(fields: [voyageId], references: [id])
+  container       Container?          @relation(fields: [containerId], references: [id])
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([shipmentId])
+  @@index([type])
+  @@index([timestamp])
+  @@index([vesselId])
+  @@index([voyageId])
+  @@index([containerId])
+  @@index([isMilestone])
+}
+
+model Shipment {
+  id              String       @id @default(cuid())
+  code            String
+  status          ShipmentStatus
+  mode            ShipmentMode
+  origin          String
+  destination     String
+  pol             String?
+  pod             String?
+  etd             DateTime?
+  eta             DateTime?
+  atd             DateTime?
+  ata             DateTime?
+  vesselId        String?
+  voyageId        String?
+  tenantId        String
+  isDeleted       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  trackingEvents  TrackingEvent[]
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([vesselId])
+  @@index([voyageId])
+}
+
+model Vessel {
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  imo         String?
+  mmsi        String?
+  callSign    String?
+  flag        String?
+  type        VesselType
+  tenantId    String
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@unique([tenantId, imo])
+  @@index([tenantId])
+  @@index([imo])
+}
+
+model Voyage {
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  vesselId    String
+  serviceCode String?
+  pol         String
+  pod         String
+  etd         DateTime?
+  eta         DateTime?
+  atd         DateTime?
+  ata         DateTime?
+  status      VoyageStatus @default(SCHEDULED)
+  tenantId    String
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vessel      Vessel   @relation(fields: [vesselId], references: [id])
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([vesselId])
+  @@index([status])
+  @@index([etd, eta])
+}
+
+model Container {
+  id          String           @id @default(cuid())
+  code        String
+  number      String
+  type        ContainerType
+  status      ContainerStatus
+  tenantId    String
+  isDeleted   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([number])
+  @@index([type])
+  @@index([status])
+}
+
+model Notification {
+  id              String              @id @default(cuid())
+  code            String
+  type            NotificationType
+  channel         NotificationChannel
+  priority        NotificationPriority
+  title           String
+  message         String
+  recipientType   RecipientType
+  recipientId     String?
+  recipientEmail  String?
+  recipientPhone  String?
+  templateId      String?
+  templateData    Json?
+  status          NotificationStatus  @default(PENDING)
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  retryCount      Int                 @default(0)
+  maxRetries      Int                 @default(3)
+  scheduledAt     DateTime?
+  trackingEventId String?
+  shipmentId      String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([status])
+  @@index([recipientType, recipientId])
+  @@index([scheduledAt])
+  @@index([sentAt])
+}
+
+model Alert {
+  id              String          @id @default(cuid())
+  code            String
+  type            AlertType
+  severity        AlertSeverity
+  title           String
+  message         String
+  shipmentId      String?
+  vesselId        String?
+  voyageId        String?
+  containerId     String?
+  trackingEventId String?
+  condition       Json
+  isActive        Boolean         @default(true)
+  acknowledgedAt  DateTime?
+  acknowledgedBy  String?
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([severity])
+  @@index([isActive])
+  @@index([shipmentId])
+  @@index([vesselId])
+  @@index([voyageId])
+  @@index([containerId])
+}
+
+model Subscription {
+  id              String              @id @default(cuid())
+  code            String
+  userId          String
+  eventTypes      TrackingEventType[]
+  channels        NotificationChannel[]
+  shipmentIds     String[]
+  vesselIds       String[]
+  voyageIds       String[]
+  containerIds    String[]
+  filters         Json?
+  isActive        Boolean             @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([isActive])
+}
+
+model NotificationTemplate {
+  id              String              @id @default(cuid())
+  code            String
+  name            String
+  type            NotificationType
+  channel         NotificationChannel
+  subject         String?
+  content         String
+  variables       String[]            @default([])
+  isActive        Boolean             @default(true)
+  tenantId        String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+}
+
+model NotificationProvider {
+  id              String              @id @default(cuid())
+  code            String
+  name            String
+  type            ProviderType
+  channel         NotificationChannel
+  config          Json
+  isActive        Boolean             @default(true)
+  priority        Int                 @default(0)
+  tenantId        String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@schema("tracking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([channel])
+  @@index([isActive])
+}
+
+enum TrackingEventType {
+  BOOKING_CONFIRMED
+  EQUIPMENT_ASSIGNED
+  PICKUP_SCHEDULED
+  PICKUP_COMPLETED
+  GATE_IN
+  LOADED_ON_VESSEL
+  VESSEL_DEPARTED
+  IN_TRANSIT
+  VESSEL_ARRIVED
+  DISCHARGED
+  GATE_OUT
+  DELIVERY_SCHEDULED
+  DELIVERY_COMPLETED
+  CUSTOMS_FILED
+  CUSTOMS_CLEARED
+  CUSTOMS_HOLD
+  CUSTOMS_EXAM
+  EXCEPTION
+  DELAY
+  DAMAGE
+  TEMPERATURE_ALERT
+  DOCUMENT_RECEIVED
+  DOCUMENT_VERIFIED
+  PAYMENT_RECEIVED
+  MILESTONE_REACHED
+}
+
+enum MilestoneType {
+  BOOKING_CONFIRMED
+  PICKUP_COMPLETED
+  LOADED_ON_VESSEL
+  VESSEL_DEPARTED
+  VESSEL_ARRIVED
+  DISCHARGED
+  CUSTOMS_CLEARED
+  DELIVERY_COMPLETED
+}
+
+enum ShipmentStatus {
+  DRAFT
+  QUOTE_REQUESTED
+  QUOTED
+  BOOKED
+  CONFIRMED
+  DOCUMENTS_PENDING
+  DOCUMENTS_RECEIVED
+  CUSTOMS_PENDING
+  CUSTOMS_CLEARED
+  CUSTOMS_HOLD
+  CUSTOMS_EXAM
+  LOADED
+  IN_TRANSIT
+  ARRIVED
+  UNLOADED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+  PROBLEM
+}
+
+enum ShipmentMode {
+  SEA_FCL
+  SEA_LCL
+  AIR
+  ROAD
+  RAIL
+  MULTIMODAL
+  COURIER
+}
+
+enum VesselType {
+  CONTAINER
+  BULK
+  TANKER
+  RO_RO
+  GENERAL_CARGO
+  REEFER
+  LNG
+  LPG
+  OTHER
+}
+
+enum VoyageStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum ContainerType {
+  DRY_20FT
+  DRY_40FT
+  DRY_40FT_HC
+  DRY_45FT_HC
+  REEFER_20FT
+  REEFER_40FT
+  REEFER_40FT_HC
+  OPEN_TOP_20FT
+  OPEN_TOP_40FT
+  FLAT_RACK_20FT
+  FLAT_RACK_40FT
+  TANK_20FT
+  TANK_40FT
+  SPECIAL
+}
+
+enum ContainerStatus {
+  AVAILABLE
+  BOOKED
+  PICKED_UP
+  IN_YARD
+  LOADING
+  LOADED
+  ON_VESSEL
+  IN_TRANSIT
+  ARRIVED
+  UNLOADING
+  UNLOADED
+  DELIVERED
+  EMPTY_RETURN
+  DAMAGED
+  MAINTENANCE
+  SOLD
+  SCRAPPED
+}
+
+enum NotificationType {
+  SHIPMENT_UPDATE
+  MILESTONE_REACHED
+  DELAY_ALERT
+  EXCEPTION_ALERT
+  TEMPERATURE_ALERT
+  CUSTOMS_ALERT
+  DOCUMENT_REQUIRED
+  PAYMENT_REMINDER
+  DELIVERY_SCHEDULED
+  DELIVERY_COMPLETED
+  PICKUP_SCHEDULED
+  PICKUP_COMPLETED
+  DOCUMENT_RECEIVED
+  DOCUMENT_VERIFIED
+  PAYMENT_RECEIVED
+  GENERAL
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum RecipientType {
+  USER
+  ROLE
+  GROUP
+  EMAIL
+  PHONE
+  WEBHOOK_URL
+}
+
+enum NotificationStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum AlertType {
+  DELAY
+  TEMPERATURE_EXCURSION
+  CUSTOMS_HOLD
+  CUSTOMS_EXAM
+  DAMAGE_REPORTED
+  EQUIPMENT_MISSING
+  DOCUMENT_MISSING
+  PAYMENT_OVERDUE
+  DELIVERY_FAILED
+  PICKUP_FAILED
+  VESSEL_DELAY
+  PORT_CONGESTION
+  WEATHER_ALERT
+  SECURITY_INCIDENT
+  COMPLIANCE_VIOLATION
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+enum ProviderType {
+  SMTP
+  SENDGRID
+  MAILGUN
+  SES
+  TWILIO
+  VONAGE
+  PLIVO
+  FIREBASE
+  ONESIGNAL
+  SLACK
+  TEAMS
+  WHATSAPP
+  WEBHOOK
+  CUSTOM
+}

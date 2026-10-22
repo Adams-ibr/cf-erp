@@ -1,0 +1,10 @@
+import { JwtUser } from './jwt.strategy';
+export declare const CurrentUser: (...dataOrPipes: (import("@nestjs/common").PipeTransform<any, any> | import("@nestjs/common").Type<import("@nestjs/common").PipeTransform<any, any>> | keyof JwtUser)[]) => ParameterDecorator;
+export declare const CurrentUserId: (...dataOrPipes: unknown[]) => ParameterDecorator;
+export declare const CurrentTenantId: (...dataOrPipes: unknown[]) => ParameterDecorator;
+export declare const CurrentBranchId: (...dataOrPipes: unknown[]) => ParameterDecorator;
+export declare const CurrentRoles: (...dataOrPipes: unknown[]) => ParameterDecorator;
+export declare const CurrentPermissions: (...dataOrPipes: unknown[]) => ParameterDecorator;
+export declare const IsPublic: () => (target: unknown, key?: string | symbol, descriptor?: PropertyDescriptor) => unknown;
+export declare const Permissions: (...permissions: string[]) => (target: unknown, key?: string | symbol, descriptor?: PropertyDescriptor) => unknown;
+export declare const Roles: (...roles: string[]) => (target: unknown, key?: string | symbol, descriptor?: PropertyDescriptor) => unknown;

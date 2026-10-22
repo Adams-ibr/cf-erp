@@ -1,0 +1,589 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["admin", "public"]
+}
+
+model Setting {
+  id              String   @id @default(cuid())
+  key             String
+  value           Json
+  description     String?
+  type            SettingType
+  category        String
+  subCategory     String?
+  isSystem        Boolean  @default(false)
+  isPublic        Boolean  @default(false)
+  isEncrypted     Boolean  @default(false)
+  validation      Json?
+  defaultValue    Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@index([category])
+  @@index([subCategory])
+  @@index([isSystem])
+  @@index([isPublic])
+}
+
+model Configuration {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            ConfigType
+  schema          Json
+  defaultValues   Json?
+  uiSchema        Json?
+  isActive        Boolean  @default(true)
+  isSystem        Boolean  @default(false)
+  version         Int      @default(1)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([isSystem])
+}
+
+model FeatureFlag {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            FlagType
+  defaultValue    Boolean  @default(false)
+  rules           Json?
+  rolloutPercent  Int      @default(0)
+  targetGroups    String[] @default([])
+  targetUsers     String[] @default([])
+  schedule        Json?
+  isActive        Boolean  @default(true)
+  isSystem        Boolean  @default(false)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([isSystem])
+}
+
+model MaintenanceWindow {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            MaintenanceType
+  status          MaintenanceStatus @default(SCHEDULED)
+  startTime       DateTime
+  endTime         DateTime
+  timezone        String           @default("UTC")
+  recurrence      RecurrenceRule?
+  affectedServices String[]        @default([])
+  affectedRegions String[]         @default([])
+  notificationChannels NotificationChannel[]
+  notificationLeadTime Int         @default(24)
+  statusMessage   String?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([startTime, endTime])
+  @@index([isActive])
+}
+
+model Backup {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            BackupType
+  status          BackupStatus     @default(PENDING)
+  source          String
+  destination     String
+  size            BigInt?
+  compressedSize  BigInt?
+  compressionRatio Decimal?        @db.Decimal(5, 2)
+  encryption      EncryptionType?
+  passwordHash    String?
+  checksum        String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  retentionDays   Int              @default(30)
+  expiresAt       DateTime?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([completedAt])
+  @@index([expiresAt])
+}
+
+model LogRetentionPolicy {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  logType         LogType
+  retentionDays   Int
+  archiveAfterDays Int?
+  archiveLocation String?
+  compression     CompressionType?
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([logType])
+  @@index([isActive])
+}
+
+model License {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            LicenseType
+  vendor          String
+  licenseKey      String
+  maxUsers        Int?
+  maxRequests     Int?
+  features        String[]         @default([])
+  validFrom       DateTime
+  validUntil      DateTime
+  autoRenew       Boolean          @default(false)
+  renewalNotice   Int              @default(30)
+  status          LicenseStatus    @default(ACTIVE)
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  documentUrl     String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([validUntil])
+}
+
+model Upgrade {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  version         String
+  previousVersion String?
+  type            UpgradeType
+  status          UpgradeStatus @default(PLANNED)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  rollbackVersion String?
+  rollbackAt      DateTime?
+  rollbackBy      String?
+  changelog       String?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model SecurityPolicy {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            PolicyType
+  rules           Json
+  enforcement     EnforcementMode @default(ENFORCE)
+  severity        Severity @default(MEDIUM)
+  isActive        Boolean  @default(true)
+  appliesTo       String[] @default([])
+  exemptions      Json?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model MetricThreshold {
+  id              String   @id @default(cuid())
+  code            String
+  metric          String
+  operator        Operator
+  threshold       Decimal @db.Decimal(18, 4)
+  severity        Severity @default(WARNING)
+  duration        Int      @default(300)
+  cooldownMinutes Int      @default(60)
+  channels        NotificationChannel[] @default([])
+  isActive        Boolean  @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("admin")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([metric])
+  @@index([isActive])
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  firstName       String
+  lastName       String
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("admin")
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+  ARRAY
+  ENUM
+  DATE
+  DATETIME
+  COLOR
+  FILE
+  SECRET
+}
+
+enum ConfigType {
+  GENERAL
+  API
+  DATABASE
+  CACHE
+  QUEUE
+  STORAGE
+  EMAIL
+  SMS
+  PUSH
+  WEBHOOK
+  SECURITY
+  MONITORING
+  LOGGING
+  RATE_LIMIT
+  CIRCUIT_BREAKER
+  FEATURE_FLAG
+  INTEGRATION
+  NOTIFICATION
+  SCHEDULING
+  REPORTING
+  AUDIT
+  COMPLIANCE
+  SECURITY
+  BACKUP
+  MAINTENANCE
+  LICENSE
+  UPGRADE
+  CUSTOM
+}
+
+enum FlagType {
+  BOOLEAN
+  STRING
+  NUMBER
+  JSON
+  PERCENTAGE
+  ROLLOUT
+}
+
+enum MaintenanceType {
+  PLANNED
+  EMERGENCY
+  SECURITY_PATCH
+  FEATURE_RELEASE
+  HOTFIX
+  INFRASTRUCTURE
+  DATABASE
+  NETWORK
+  SECURITY
+  CAPACITY
+  PERFORMANCE
+  COMPLIANCE
+  OTHER
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+  FAILED
+  EXTENDED
+}
+
+enum RecurrenceRule {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}
+
+enum BackupType {
+  FULL
+  INCREMENTAL
+  DIFFERENTIAL
+  SNAPSHOT
+  LOG
+  CONFIGURATION
+  DATABASE
+  FILE_SYSTEM
+  OBJECT_STORAGE
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+  CORRUPT
+  VERIFYING
+  VERIFIED
+}
+
+enum EncryptionType {
+  AES_256
+  AES_128
+  RSA_2048
+  RSA_4096
+  CHACHA20
+  NONE
+}
+
+enum CompressionType {
+  GZIP
+  BZIP2
+  LZ4
+  ZSTD
+  SNAPPY
+  NONE
+}
+
+enum LogType {
+  ACCESS
+  ERROR
+  AUDIT
+  SECURITY
+  PERFORMANCE
+  DEBUG
+  TRACE
+  APPLICATION
+  DATABASE
+  NETWORK
+  SYSTEM
+  CUSTOM
+}
+
+enum LicenseType {
+  PERPETUAL
+  SUBSCRIPTION
+  TRIAL
+  FREEMIUM
+  OPEN_SOURCE
+  COMMUNITY
+  ENTERPRISE
+  CUSTOM
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  EXPIRING
+  SUSPENDED
+  REVOKED
+  GRACE_PERIOD
+  PENDING_RENEWAL
+  DISPUTED
+}
+
+enum UpgradeType {
+  MAJOR
+  MINOR
+  PATCH
+  HOTFIX
+  SECURITY_PATCH
+  FEATURE_RELEASE
+  HOTFIX_ROLLBACK
+  MIGRATION
+  PLATFORM_UPGRADE
+  INFRASTRUCTURE
+}
+
+enum UpgradeStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  ROLLED_BACK
+  POSTPONED
+  ON_HOLD
+}
+
+enum PolicyType {
+  ACCESS_CONTROL
+  DATA_PROTECTION
+  RETENTION
+  ENCRYPTION
+  AUTHENTICATION
+  AUTHORIZATION
+  NETWORK_SECURITY
+  ENDPOINT_SECURITY
+  APPLICATION_SECURITY
+  DATA_LOSS_PREVENTION
+  COMPLIANCE
+  RISK_MANAGEMENT
+  INCIDENT_RESPONSE
+  VULNERABILITY_MANAGEMENT
+  THIRD_PARTY_RISK
+  BUSINESS_CONTINUITY
+  DISASTER_RECOVERY
+}
+
+enum EnforcementMode {
+  ENFORCE
+  MONITOR
+  AUDIT_ONLY
+  ADVISORY
+  DISABLED
+}
+
+enum Severity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Operator {
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  GREATER_THAN_OR_EQUAL
+  LESS_THAN
+  LESS_THAN_OR_EQUAL
+  CONTAINS
+  NOT_CONTAINS
+  STARTS_WITH
+  ENDS_WITH
+  REGEX
+  IN
+  NOT_IN
+  BETWEEN
+  NOT_BETWEEN
+  IS_NULL
+  IS_NOT_NULL
+  IS_TRUE
+  IS_FALSE
+}

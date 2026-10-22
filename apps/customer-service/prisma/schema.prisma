@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["customer", "public"]
+}
+
+model Customer {
+  id                String   @id @default(cuid())
+  code              String
+  name              String
+  tradeName         String?
+  type              CustomerType @default(COMPANY)
+  status            CustomerStatus @default(ACTIVE)
+  taxId             String?
+  vatNumber         String?
+  registrationNumber String?
+  website           String?
+  industry          String?
+  annualRevenue     Decimal? @db.Decimal(18, 2)
+  employeeCount     Int?
+  creditLimit       Decimal  @default(0) @db.Decimal(18, 2)
+  paymentTerms      Int      @default(30)
+  currency          String   @default("USD")
+  riskRating        RiskRating @default(LOW)
+  notes             String?
+  tenantId          String
+  branchId          String?
+  assignedToId      String?
+  parentId          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean  @default(false)
+  createdBy         String?
+  updatedBy         String?
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  branch            Branch?     @relation(fields: [branchId], references: [id])
+  assignedTo        User?       @relation("CustomerAssignedTo", fields: [assignedToId], references: [id])
+  parent            Customer?   @relation("CustomerHierarchy", fields: [parentId], references: [id])
+  children          Customer[]  @relation("CustomerHierarchy")
+  contacts          Contact[]
+  addresses         Address[]
+  bankDetails       BankDetail[]
+  quotations        Quotation[]
+  shipments         Shipment[]
+  invoices          Invoice[]
+  payments          Payment[]
+  documents         Document[]
+  tasks             Task[]
+  activities        Activity[]
+
+  @@schema("customer")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedToId])
+  @@index([parentId])
+  @@index([name])
+  @@index([taxId])
+  @@index([vatNumber])
+}
+
+model Supplier {
+  id                String   @id @default(cuid())
+  code              String
+  name              String
+  tradeName         String?
+  type              SupplierType @default(COMPANY)
+  status            SupplierStatus @default(ACTIVE)
+  taxId             String?
+  vatNumber         String?
+  registrationNumber String?
+  website           String?
+  industry          String?
+  currency          String   @default("USD")
+  paymentTerms      Int      @default(30)
+  incoterm          Incoterm @default(FOB)
+  portOfLoading     String?
+  portOfDischarge   String?
+  riskRating        RiskRating @default(LOW)
+  certifications    String[]
+  notes             String?
+  tenantId          String
+  branchId          String?
+  assignedToId      String?
+  parentId          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean  @default(false)
+  createdBy         String?
+  updatedBy         String?
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  branch            Branch?     @relation(fields: [branchId], references: [id])
+  assignedTo        User?       @relation("SupplierAssignedTo", fields: [assignedToId], references: [id])
+  parent            Supplier?   @relation("SupplierHierarchy", fields: [parentId], references: [id])
+  children          Supplier[]  @relation("SupplierHierarchy")
+  contacts          Contact[]
+  addresses         Address[]
+  bankDetails       BankDetail[]
+  rates             Rate[]
+  bookings          Booking[]
+  shipments         Shipment[]
+  documents         Document[]
+  tasks             Task[]
+  activities        Activity[]
+
+  @@schema("customer")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedToId])
+  @@index([parentId])
+  @@index([name])
+  @@index([taxId])
+  @@index([vatNumber])
+}
+
+model Contact {
+  id              String       @id @default(cuid())
+  firstName       String
+  lastName        String
+  title           String?
+  department      String?
+  email           String?
+  phone           String?
+  mobile          String?
+  fax             String?
+  isPrimary       Boolean      @default(false)
+  isActive        Boolean      @default(true)
+  notes           String?
+  customerId      String?
+  supplierId      String?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean      @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  customer        Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  supplier        Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("customer")
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([email])
+  @@index([isPrimary])
+}
+
+model Address {
+  id              String         @id @default(cuid())
+  type            AddressType    @default(BILLING)
+  line1           String
+  line2           String?
+  city            String
+  state           String?
+  postalCode      String
+  country         String
+  coordinates     Json?
+  isDefault       Boolean        @default(false)
+  customerId      String?
+  supplierId      String?
+  warehouseId     String?
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean        @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  customer        Customer?      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  supplier        Supplier?      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("customer")
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@index([type])
+  @@index([country])
+  @@index([city])
+}
+
+model BankDetail {
+  id              String   @id @default(cuid())
+  bankName        String
+  accountName     String
+  accountNumber   String
+  iban            String?
+  swiftBic        String?
+  routingNumber   String?
+  branchName      String?
+  branchAddress   Json?
+  currency        String   @default("USD")
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  customerId      String?
+  supplierId      String?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  supplier        Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("customer")
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([currency])
+}
+
+model Activity {
+  id              String        @id @default(cuid())
+  type            ActivityType
+  subject         String
+  description     String?
+  metadata        Json?
+  customerId      String?
+  supplierId      String?
+  userId          String
+  tenantId        String
+  createdAt       DateTime      @default(now())
+
+  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  supplier        Supplier?     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@schema("customer")
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("customer")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  tenantId  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@schema("customer")
+  @@unique([tenantId, code])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String
+  firstName String
+  lastName  String
+  isActive  Boolean  @default(true)
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("customer")
+  @@unique([tenantId, email])
+}
+
+enum CustomerType {
+  COMPANY
+  INDIVIDUAL
+  GOVERNMENT
+  NGO
+  OTHER
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  LEAD
+  ON_HOLD
+  BLOCKED
+  ARCHIVED
+}
+
+enum SupplierType {
+  COMPANY
+  INDIVIDUAL
+  AGENT
+  CARRIER
+  CUSTOMS_BROKER
+  WAREHOUSE
+  INSURANCE
+  BANK
+  GOVERNMENT
+  OTHER
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  ON_HOLD
+  BLOCKED
+  ARCHIVED
+}
+
+enum RiskRating {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}
+
+enum AddressType {
+  BILLING
+  SHIPPING
+  REGISTERED
+  WAREHOUSE
+  PICKUP
+  DELIVERY
+  OTHER
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  QUOTATION_SENT
+  QUOTATION_ACCEPTED
+  ORDER_CREATED
+  SHIPMENT_BOOKED
+  DOCUMENT_RECEIVED
+  PAYMENT_RECEIVED
+  COMPLAINT
+  OTHER
+}

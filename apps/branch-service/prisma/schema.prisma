@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["branch", "public"]
+}
+
+model Branch {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            BranchType       @default(OPERATIONAL)
+  status          BranchStatus     @default(ACTIVE)
+  parentId        String?
+  regionId        String?
+  countryId       String?
+  managerId       String?
+  address         Json
+  contact         Json?
+  operatingHours  Json?
+  timezone        String           @default("UTC")
+  currency        String           @default("USD")
+  language        String           @default("en")
+  taxId           String?
+  registrationNumber String?
+  licenseNumber   String?
+  licenseExpiry   DateTime?
+  settings        Json?
+  isHeadOffice    Boolean          @default(false)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  parent          Branch?          @relation("BranchHierarchy", fields: [parentId], references: [id])
+  children        Branch[]         @relation("BranchHierarchy")
+  region          Region?          @relation(fields: [regionId], references: [id])
+  country         Country?         @relation(fields: [countryId], references: [id])
+  manager         User?            @relation("BranchManager", fields: [managerId], references: [id])
+  users           BranchUser[]
+  locations       Location[]
+  settings        BranchSetting[]
+
+  @@schema("branch")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([regionId])
+  @@index([countryId])
+  @@index([managerId])
+  @@index([status])
+  @@index([type])
+  @@index([isHeadOffice])
+}
+
+model Region {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  parentId        String?
+  managerId       String?
+  timezone        String   @default("UTC")
+  currency        String   @default("USD")
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  parent          Region?  @relation("RegionHierarchy", fields: [parentId], references: [id])
+  children        Region[] @relation("RegionHierarchy")
+  branches        Branch[]
+  countries       Country[]
+
+  @@schema("branch")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([managerId])
+  @@index([isActive])
+}
+
+model Country {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  isoCode         String
+  isoCode3        String?
+  numericCode     String?
+  regionId        String?
+  currency        String
+  language        String
+  timezone        String
+  dialCode        String?
+  flagUrl         String?
+  isActive        Boolean  @default(true)
+  isEU            Boolean  @default(false)
+  isOECD          Boolean  @default(false)
+  vatRequired     Boolean  @default(false)
+  customsUnion    Boolean  @default(false)
+  freeTradeAgreements String[]
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  region          Region?  @relation(fields: [regionId], references: [id])
+  branches        Branch[]
+  regulations     Regulation[]
+
+  @@schema("branch")
+  @@unique([tenantId, code])
+  @@unique([tenantId, isoCode])
+  @@index([tenantId])
+  @@index([regionId])
+  @@index([isActive])
+  @@index([isEU])
+  @@index([isOECD])
+}
+
+model Location {
+  id              String         @id @default(cuid())
+  code            String
+  name            String
+  type            LocationType
+  address         Json
+  contact         Json?
+  coordinates     Json?
+  branchId        String
+  managerId       String?
+  capacity        Int?
+  operatingHours  Json?
+  timezone        String         @default("UTC")
+  isActive        Boolean        @default(true)
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean        @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  branch          Branch         @relation(fields: [branchId], references: [id])
+  manager         User?          @relation(fields: [managerId], references: [id])
+  inventory       Inventory[]
+  shipments       Shipment[]
+
+  @@schema("branch")
+  @@unique([branchId, code])
+  @@index([branchId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model BranchUser {
+  id              String           @id @default(cuid())
+  branchId        String
+  userId          String
+  role            BranchRole
+  isPrimary       Boolean          @default(false)
+  assignedAt      DateTime         @default(now())
+  removedAt       DateTime?
+  removedBy       String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  branch          Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@schema("branch")
+  @@unique([branchId, userId])
+  @@index([branchId])
+  @@index([userId])
+  @@index([role])
+}
+
+model BranchSetting {
+  id              String   @id @default(cuid())
+  branchId        String
+  key             String
+  value           Json
+  description     String?
+  isSystem        Boolean  @default(false)
+  isEncrypted     Boolean  @default(false)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@schema("branch")
+  @@unique([branchId, key])
+  @@index([branchId])
+  @@index([key])
+}
+
+model Regulation {
+  id              String   @id @default(cuid())
+  code            String
+  countryId       String
+  type            RegulationType
+  name            String
+  description     String?
+  authority       String
+  reference       String?
+  effectiveDate   DateTime
+  expiryDate      DateTime?
+  status          RegulationStatus @default(ACTIVE)
+  version         String
+  documentUrl     String?
+  tags            String[] @default([])
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  country         Country @relation(fields: [countryId], references: [id])
+
+  @@schema("branch")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([countryId])
+  @@index([type])
+  @@index([status])
+  @@index([effectiveDate])
+  @@index([expiryDate])
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  firstName       String
+  lastName        String
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("branch")
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum BranchType {
+  OPERATIONAL
+  SALES
+  ADMINISTRATIVE
+  WAREHOUSE
+  CUSTOMS
+  FINANCE
+  IT
+  HR
+  LEGAL
+  COMPLIANCE
+  HEAD_OFFICE
+  REGIONAL_OFFICE
+  BRANCH_OFFICE
+  SUBSIDIARY
+  REPRESENTATIVE_OFFICE
+  VIRTUAL
+  OTHER
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  SUSPENDED
+  CLOSED
+  MERGED
+  RELOCATED
+  UNDER_CONSTRUCTION
+  PLANNED
+}
+
+enum BranchRole {
+  MANAGER
+  SUPERVISOR
+  STAFF
+  VIEWER
+  ADMIN
+  AUDITOR
+  COMPLIANCE_OFFICER
+  FINANCE_OFFICER
+  OPERATIONS_OFFICER
+  SALES_OFFICER
+}
+
+enum LocationType {
+  OFFICE
+  WAREHOUSE
+  DEPOT
+  TERMINAL
+  PORT
+  AIRPORT
+  BORDER_CROSSING
+  CUSTOMS_OFFICE
+  FREE_ZONE
+  BONDED_WAREHOUSE
+  CFS
+  ICD
+  TRUCKING_TERMINAL
+  RAIL_YARD
+  PIER
+  DOCK
+  YARD
+  OTHER
+}
+
+enum RegulationType {
+  CUSTOMS
+  TAX
+  TRADE
+  ENVIRONMENTAL
+  LABOR
+  SAFETY
+  SECURITY
+  DATA_PROTECTION
+  FINANCIAL
+  SANCTIONS
+  EMBARGO
+  QUARANTINE
+  PHYTOSANITARY
+  VETERINARY
+  DRUG_CONTROL
+  HAZARDOUS_MATERIALS
+  TRANSPORTATION
+  MARITIME
+  AVIATION
+  RAIL
+  ROAD
+  PIPELINE
+  OTHER
+}
+
+enum RegulationStatus {
+  ACTIVE
+  PENDING
+  EXPIRED
+  REPEALED
+  SUSPENDED
+  DRAFT
+  PROPOSED
+  AMENDED
+}

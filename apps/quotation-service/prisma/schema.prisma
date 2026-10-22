@@ -1,0 +1,354 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["quotation", "public"]
+}
+
+model Quotation {
+  id              String           @id @default(cuid())
+  code            String
+  version         Int              @default(1)
+  status          QuoteStatus      @default(DRAFT)
+  customerId      String
+  supplierId      String?
+  validFrom       DateTime
+  validUntil      DateTime
+  incoterm        Incoterm         @default(FOB)
+  paymentTerms    Int              @default(30)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal        Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  notes           String?
+  terms           String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  approvedBy      String?
+  approvedAt      DateTime?
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  respondedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  items           QuotationItem[]
+  rateCards       RateCard[]
+  documents       Document[]
+
+  @@schema("quotation")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([validFrom, validUntil])
+  @@index([createdAt])
+}
+
+model QuotationItem {
+  id              String           @id @default(cuid())
+  quotationId     String
+  lineNumber      Int
+  description     String
+  quantity        Decimal          @db.Decimal(18, 4)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(18, 4)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  taxPercent      Decimal          @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  commodityCode   String?
+  weight          Decimal?         @db.Decimal(18, 4)
+  volume          Decimal?         @db.Decimal(18, 4)
+  origin          String?
+  destination     String?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  quotation       Quotation        @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@schema("quotation")
+  @@unique([quotationId, lineNumber])
+  @@index([quotationId])
+  @@index([commodityCode])
+}
+
+model Rate {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            RateType
+  basis           RateBasis
+  currency        String           @default("USD")
+  amount          Decimal          @db.Decimal(18, 4)
+  minQuantity     Decimal?         @db.Decimal(18, 4)
+  maxQuantity     Decimal?         @db.Decimal(18, 4)
+  unit            String
+  origin          String?
+  destination     String?
+  commodityCode   String?
+  carrierId       String?
+  supplierId      String?
+  validFrom       DateTime
+  validUntil      DateTime
+  isActive        Boolean          @default(true)
+  isSpot          Boolean          @default(false)
+  surcharges      Json?
+  conditions      Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  rateCardItems   RateCardItem[]
+
+  @@schema("quotation")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([basis])
+  @@index([supplierId])
+  @@index([carrierId])
+  @@index([origin, destination])
+  @@index([commodityCode])
+  @@index([validFrom, validUntil])
+  @@index([isActive])
+}
+
+model RateCard {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  quotationId     String?
+  supplierId      String?
+  carrierId       String?
+  origin          String
+  destination     String
+  commodityCode   String?
+  validFrom       DateTime
+  validUntil      DateTime
+  status          RateCardStatus   @default(DRAFT)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  markupPercent   Decimal          @default(0) @db.Decimal(5, 2)
+  totalAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  quotation       Quotation?       @relation(fields: [quotationId], references: [id])
+  items           RateCardItem[]
+
+  @@schema("quotation")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([supplierId])
+  @@index([carrierId])
+  @@index([quotationId])
+  @@index([origin, destination])
+  @@index([status])
+  @@index([validFrom, validUntil])
+}
+
+model RateCardItem {
+  id              String           @id @default(cuid())
+  rateCardId      String
+  rateId          String
+  lineNumber      Int
+  quantity        Decimal          @db.Decimal(18, 4)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(18, 4)
+  markupPercent   Decimal          @default(0) @db.Decimal(5, 2)
+  markupAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  isIncluded      Boolean          @default(true)
+  sortOrder       Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  rateCard        RateCard         @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+  rate            Rate             @relation(fields: [rateId], references: [id])
+
+  @@schema("quotation")
+  @@unique([rateCardId, lineNumber])
+  @@index([rateCardId])
+  @@index([rateId])
+}
+
+model ValidityRule {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  entityType      ValidityEntityType
+  entityId        String?
+  ruleType        ValidityRuleType
+  condition       Json
+  action          Json
+  priority        Int              @default(0)
+  isActive        Boolean          @default(true)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("quotation")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([ruleType])
+  @@index([isActive])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("quotation")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("quotation")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  quotationId String
+  type      String
+  name      String
+  url       String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  @@schema("quotation")
+  @@index([quotationId])
+  @@index([tenantId])
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  REVISED
+  CONVERTED
+}
+
+enum RateType {
+  FREIGHT
+  ORIGIN_CHARGES
+  DESTINATION_CHARGES
+  CUSTOMS_CLEARANCE
+  DOCUMENTATION
+  INSURANCE
+  TRANSPORT
+  WAREHOUSING
+  HANDLING
+  OTHER
+}
+
+enum RateBasis {
+  PER_CONTAINER
+  PER_KG
+  PER_CBM
+  PER_PALLET
+  PER_SHIPMENT
+  PER_DAY
+  PER_HOUR
+  PER_KM
+  PER_MILE
+  LUMP_SUM
+  PERCENTAGE
+}
+
+enum RateCardStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  ARCHIVED
+}
+
+enum ValidityEntityType {
+  QUOTATION
+  RATE
+  RATE_CARD
+  CUSTOMER
+  SUPPLIER
+  LANE
+  COMMODITY
+}
+
+enum ValidityRuleType {
+  DATE_RANGE
+  QUANTITY_RANGE
+  WEIGHT_RANGE
+  VOLUME_RANGE
+  ORIGIN_DESTINATION
+  COMMODITY
+  CUSTOMER_GROUP
+  SEASONAL
+  CURRENCY
+  CUSTOM
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}

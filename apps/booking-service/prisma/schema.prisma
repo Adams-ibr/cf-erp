@@ -1,0 +1,745 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["booking", "public"]
+}
+
+model Booking {
+  id              String           @id @default(cuid())
+  code            String
+  reference       String?
+  status          BookingStatus    @default(REQUESTED)
+  type            BookingType      @default(FCL)
+  mode            ShipmentMode     @default(SEA_FCL)
+  direction       ShipmentDirection @default(IMPORT)
+  incoterm        Incoterm         @default(FOB)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  jobId           String?
+  shipmentId      String?
+  customerId      String
+  supplierId      String?
+  carrierId       String
+  vesselId        String?
+  voyageId        String?
+  origin          String
+  destination     String
+  pol             String?
+  pod             String?
+  finalDestination String?
+  commodity       String?
+  weight          Decimal?         @db.Decimal(18, 4)
+  volume          Decimal?         @db.Decimal(18, 4)
+  quantity        Int?
+  unit            String?
+  value           Decimal?         @db.Decimal(18, 2)
+  insuranceValue  Decimal?         @db.Decimal(18, 2)
+  hazardousClass  String?
+  unNumber        String?
+  imdgClass       String?
+  packingGroup    String?
+  pickupDate      DateTime?
+  deliveryDate    DateTime?
+  cutoffDate      DateTime?
+  etd             DateTime?
+  eta             DateTime?
+  atd             DateTime?
+  ata             DateTime?
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  notes           String?
+  internalNotes   String?
+  terms           String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  carrier         Carrier          @relation(fields: [carrierId], references: [id])
+  vessel          Vessel?          @relation(fields: [vesselId], references: [id])
+  voyage          Voyage?          @relation(fields: [voyageId], references: [id])
+  job             Job?             @relation(fields: [jobId], references: [id])
+  shipment        Shipment?        @relation(fields: [shipmentId], references: [id])
+  spaces          BookingSpace[]
+  allocations     SpaceAllocation[]
+  documents       Document[]
+  activities      Activity[]
+  costs           BookingCost[]
+  revenues        BookingRevenue[]
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([carrierId])
+  @@index([vesselId])
+  @@index([voyageId])
+  @@index([jobId])
+  @@index([shipmentId])
+  @@index([status])
+  @@index([origin, destination])
+  @@index([pol, pod])
+  @@index([etd, eta])
+  @@index([createdAt])
+}
+
+model BookingSpace {
+  id              String           @id @default(cuid())
+  bookingId       String
+  containerType   ContainerType
+  containerCount  Int
+  weightLimit     Decimal?         @db.Decimal(18, 4)
+  volumeLimit     Decimal?         @db.Decimal(18, 4)
+  rateId          String?
+  rateAmount      Decimal?         @db.Decimal(18, 4)
+  rateCurrency    String?
+  status          SpaceStatus      @default(REQUESTED)
+  allocatedAt     DateTime?
+  releasedAt      DateTime?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  booking         Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  rate            Rate?            @relation(fields: [rateId], references: [id])
+  allocations     SpaceAllocation[]
+
+  @@schema("booking")
+  @@index([bookingId])
+  @@index([containerType])
+  @@index([status])
+}
+
+model SpaceAllocation {
+  id              String           @id @default(cuid())
+  bookingId       String
+  bookingSpaceId  String
+  containerId     String
+  containerNumber String
+  sealNumber      String?
+  allocatedAt     DateTime         @default(now())
+  releasedAt      DateTime?
+  status          AllocationStatus @default(ALLOCATED)
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  booking         Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingSpace    BookingSpace     @relation(fields: [bookingSpaceId], references: [id], onDelete: Cascade)
+  container       Container        @relation(fields: [containerId], references: [id])
+
+  @@schema("booking")
+  @@index([bookingId])
+  @@index([bookingSpaceId])
+  @@index([containerId])
+  @@index([status])
+}
+
+model Carrier {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            CarrierType
+  scac            String?
+  mcNumber        String?
+  dotNumber       String?
+  iataCode        String?
+  fmcNumber       String?
+  website         String?
+  email           String?
+  phone           String?
+  address         Json?
+  contactPerson   String?
+  contactEmail    String?
+  contactPhone    String?
+  paymentTerms    Int              @default(30)
+  currency        String           @default("USD")
+  creditLimit     Decimal          @default(0) @db.Decimal(18, 2)
+  rating          Decimal?         @db.Decimal(3, 2)
+  isPreferred     Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  contractStart   DateTime?
+  contractEnd     DateTime?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  bookings        Booking[]
+  vessels         Vessel[]
+  voyages         Voyage[]
+  rates           Rate[]
+  services        CarrierService[]
+  documents       Document[]
+  contacts        Contact[]
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@unique([tenantId, scac])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([isPreferred])
+}
+
+model CarrierService {
+  id              String           @id @default(cuid())
+  carrierId       String
+  serviceName     String
+  serviceCode     String?
+  mode            ShipmentMode
+  origin          String?
+  destination     String?
+  transitTime     Int?
+  frequency       String?
+  equipment       ContainerType[]
+  isActive        Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  carrier         Carrier          @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@schema("booking")
+  @@index([carrierId])
+  @@index([mode])
+  @@index([serviceCode])
+}
+
+model Vessel {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  imo             String?
+  mmsi            String?
+  callSign        String?
+  flag            String?
+  type            VesselType
+  capacity        Int?
+  dwt             Int?
+  loa             Decimal?         @db.Decimal(10, 2)
+  beam            Decimal?         @db.Decimal(10, 2)
+  draft           Decimal?         @db.Decimal(10, 2)
+  yearBuilt       Int?
+  builder         String?
+  owner           String?
+  operator        String?
+  carrierId       String?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  carrier         Carrier?         @relation(fields: [carrierId], references: [id])
+  voyages         Voyage[]
+  bookings        Booking[]
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@unique([tenantId, imo])
+  @@index([tenantId])
+  @@index([carrierId])
+  @@index([imo])
+  @@index([isActive])
+}
+
+model Voyage {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  serviceCode     String?
+  vesselId        String
+  carrierId       String?
+  pol             String
+  pod             String
+  etd             DateTime
+  eta             DateTime
+  atd             DateTime?
+  ata             DateTime?
+  status          VoyageStatus     @default(SCHEDULED)
+  cutoffDate      DateTime?
+  docsCutoff      DateTime?
+  vgmCutoff       DateTime?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  vessel          Vessel           @relation(fields: [vesselId], references: [id])
+  carrier         Carrier?         @relation(fields: [carrierId], references: [id])
+  bookings        Booking[]
+  schedules       VoyageSchedule[]
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([vesselId])
+  @@index([carrierId])
+  @@index([status])
+  @@index([etd, eta])
+  @@index([pol, pod])
+}
+
+model VoyageSchedule {
+  id              String           @id @default(cuid())
+  voyageId        String
+  portCode        String
+  portName        String
+  sequence        Int
+  etd             DateTime?
+  eta             DateTime?
+  atd             DateTime?
+  ata             DateTime?
+  isTransshipment Boolean          @default(false)
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  voyage          Voyage           @relation(fields: [voyageId], references: [id], onDelete: Cascade)
+
+  @@schema("booking")
+  @@unique([voyageId, sequence])
+  @@index([voyageId])
+  @@index([portCode])
+}
+
+model Container {
+  id              String           @id @default(cuid())
+  code            String
+  number          String
+  type            ContainerType
+  size            ContainerSize
+  status          ContainerStatus  @default(AVAILABLE)
+  owner           String?
+  operator        String?
+  manufactureDate DateTime?
+  lastInspection  DateTime?
+  nextInspection  DateTime?
+  tareWeight      Decimal?         @db.Decimal(18, 4)
+  maxPayload      Decimal?         @db.Decimal(18, 4)
+  volume          Decimal?         @db.Decimal(18, 4)
+  currentLocation String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  allocations     SpaceAllocation[]
+  bookings        Booking[]
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([number])
+  @@index([type])
+  @@index([status])
+  @@index([owner])
+}
+
+model Rate {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            RateType
+  basis           RateBasis
+  carrierId       String?
+  supplierId      String?
+  currency        String           @default("USD")
+  amount          Decimal          @db.Decimal(18, 4)
+  minQuantity     Decimal?         @db.Decimal(18, 4)
+  maxQuantity     Decimal?         @db.Decimal(18, 4)
+  unit            String
+  origin          String?
+  destination     String?
+  commodityCode   String?
+  containerType   ContainerType?
+  validFrom       DateTime
+  validUntil      DateTime
+  isActive        Boolean          @default(true)
+  isSpot          Boolean          @default(false)
+  surcharges      Json?
+  conditions      Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  carrier         Carrier?         @relation(fields: [carrierId], references: [id])
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  bookingSpaces   BookingSpace[]
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([carrierId])
+  @@index([supplierId])
+  @@index([type])
+  @@index([basis])
+  @@index([origin, destination])
+  @@index([containerType])
+  @@index([validFrom, validUntil])
+  @@index([isActive])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  code      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Shipment {
+  id        String   @id @default(cuid())
+  code      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("booking")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  bookingId String?
+  carrierId String?
+  type      String
+  name      String
+  url       String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  @@schema("booking")
+  @@index([bookingId])
+  @@index([carrierId])
+  @@index([tenantId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  bookingId String?
+  carrierId String?
+  type      String
+  subject   String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  @@schema("booking")
+  @@index([bookingId])
+  @@index([carrierId])
+  @@index([tenantId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Contact {
+  id              String   @id @default(cuid())
+  carrierId       String
+  firstName       String
+  lastName        String
+  title           String?
+  department      String?
+  email           String?
+  phone           String?
+  mobile          String?
+  isPrimary       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  carrier         Carrier  @relation(fields: [carrierId], references: [id], onDelete: Cascade)
+
+  @@schema("booking")
+  @@index([carrierId])
+  @@index([tenantId])
+  @@index([email])
+}
+
+model BookingCost {
+  id        String   @id @default(cuid())
+  bookingId String
+  type      CostType
+  amount    Decimal  @db.Decimal(18, 2)
+  currency  String   @default("USD")
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@schema("booking")
+  @@index([bookingId])
+  @@index([tenantId])
+  @@index([type])
+}
+
+model BookingRevenue {
+  id        String   @id @default(cuid())
+  bookingId String
+  type      RevenueType
+  amount    Decimal  @db.Decimal(18, 2)
+  currency  String   @default("USD")
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@schema("booking")
+  @@index([bookingId])
+  @@index([tenantId])
+  @@index([type])
+}
+
+enum BookingStatus {
+  REQUESTED
+  QUOTED
+  CONFIRMED
+  BOOKED
+  CANCELLED
+  AMENDED
+  SPLIT
+  ROLLED
+  EXPIRED
+  ON_HOLD
+}
+
+enum BookingType {
+  FCL
+  LCL
+  AIR
+  ROAD
+  RAIL
+  MULTIMODAL
+  COURIER
+  BREAKBULK
+  RO_RO
+  PROJECT
+}
+
+enum ShipmentMode {
+  SEA_FCL
+  SEA_LCL
+  AIR
+  ROAD
+  RAIL
+  MULTIMODAL
+  COURIER
+}
+
+enum ShipmentDirection {
+  IMPORT
+  EXPORT
+  TRANSIT
+  CROSS_TRADE
+  DOMESTIC
+}
+
+enum SpaceStatus {
+  REQUESTED
+  CONFIRMED
+  ALLOCATED
+  RELEASED
+  CANCELLED
+  WAITLISTED
+}
+
+enum AllocationStatus {
+  ALLOCATED
+  RELEASED
+  CANCELLED
+}
+
+enum CarrierType {
+  SHIPPING_LINE
+  AIRLINE
+  TRUCKING
+  RAIL
+  NVOCC
+  FREIGHT_FORWARDER
+  COURIER
+  MULTIMODAL
+}
+
+enum VesselType {
+  CONTAINER
+  BULK
+  TANKER
+  RO_RO
+  GENERAL_CARGO
+  REEFER
+  LNG
+  LPG
+  OTHER
+}
+
+enum VoyageStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum ContainerType {
+  DRY_20FT
+  DRY_40FT
+  DRY_40FT_HC
+  DRY_45FT_HC
+  REEFER_20FT
+  REEFER_40FT
+  REEFER_40FT_HC
+  OPEN_TOP_20FT
+  OPEN_TOP_40FT
+  FLAT_RACK_20FT
+  FLAT_RACK_40FT
+  TANK_20FT
+  TANK_40FT
+  SPECIAL
+}
+
+enum ContainerSize {
+  SIZE_20FT
+  SIZE_40FT
+  SIZE_45FT
+}
+
+enum ContainerStatus {
+  AVAILABLE
+  BOOKED
+  PICKED_UP
+  IN_YARD
+  LOADED
+  ON_VESSEL
+  IN_TRANSIT
+  ARRIVED
+  UNLOADED
+  DELIVERED
+  EMPTY_RETURN
+  DAMAGED
+  MAINTENANCE
+  SOLD
+  SCRAPPED
+}
+
+enum RateType {
+  FREIGHT
+  ORIGIN_CHARGES
+  DESTINATION_CHARGES
+  CUSTOMS_CLEARANCE
+  DOCUMENTATION
+  INSURANCE
+  TRANSPORT
+  WAREHOUSING
+  HANDLING
+  OTHER
+}
+
+enum RateBasis {
+  PER_CONTAINER
+  PER_KG
+  PER_CBM
+  PER_PALLET
+  PER_SHIPMENT
+  PER_DAY
+  PER_HOUR
+  PER_KM
+  PER_MILE
+  LUMP_SUM
+  PERCENTAGE
+}
+
+enum CostType {
+  FREIGHT
+  ORIGIN_CHARGES
+  DESTINATION_CHARGES
+  CUSTOMS_DUTY
+  TAXES
+  INSURANCE
+  HANDLING
+  STORAGE
+  DEMURRAGE
+  DETENTION
+  DOCUMENTATION
+  OTHER
+}
+
+enum RevenueType {
+  FREIGHT
+  ORIGIN_CHARGES
+  DESTINATION_CHARGES
+  CUSTOMS_CLEARANCE
+  DOCUMENTATION
+  INSURANCE
+  HANDLING
+  STORAGE
+  VALUE_ADDED
+  OTHER
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}

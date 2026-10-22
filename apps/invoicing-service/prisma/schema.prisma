@@ -1,0 +1,794 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["invoicing", "public"]
+}
+
+model Invoice {
+  id              String           @id @default(cuid())
+  code            String
+  type            InvoiceType
+  status          InvoiceStatus    @default(DRAFT)
+  customerId      String
+  supplierId      String?
+  shipmentId      String?
+  jobId           String?
+  bookingId       String?
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal        Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  dueDate         DateTime
+  issueDate       DateTime
+  paidDate        DateTime?
+  cancelledDate   DateTime?
+  cancelReason    String?
+  billingAddress  Json?
+  shippingAddress Json?
+  terms           String?
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  lines           InvoiceLine[]
+  payments        Payment[]
+  creditNotes     CreditNote[]
+  debitNotes      DebitNote[]
+  documents       InvoiceDocument[]
+  activities      InvoiceActivity[]
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([shipmentId])
+  @@index([jobId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([type])
+  @@index([issueDate])
+  @@index([dueDate])
+  @@index([paidDate])
+}
+
+model InvoiceLine {
+  id              String           @id @default(cuid())
+  invoiceId       String
+  lineNumber      Int
+  type            LineType
+  description     String
+  quantity        Decimal          @db.Decimal(18, 4)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(18, 4)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  taxPercent      Decimal          @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  accountId       String?
+  costCenterId    String?
+  projectId       String?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@unique([invoiceId, lineNumber])
+  @@index([invoiceId])
+  @@index([accountId])
+}
+
+model Payment {
+  id              String           @id @default(cuid())
+  code            String
+  invoiceId       String?
+  customerId      String
+  supplierId      String?
+  type            PaymentType
+  method          PaymentMethod
+  status          PaymentStatus    @default(PENDING)
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  baseAmount      Decimal          @db.Decimal(18, 2)
+  reference       String?
+  transactionId   String?
+  gatewayId       String?
+  gatewayResponse Json?
+  referenceNumber String?
+  receiptNumber   String?
+  paymentDate     DateTime
+  processedDate   DateTime?
+  settledDate     DateTime?
+  failedDate      DateTime?
+  failureReason   String?
+  refundId        String?
+  refundAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  refundDate      DateTime?
+  fees            Decimal          @default(0) @db.Decimal(18, 2)
+  netAmount       Decimal          @db.Decimal(18, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  invoice         Invoice?         @relation(fields: [invoiceId], references: [id])
+  refunds         Refund[]
+  disputes        PaymentDispute[]
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([type])
+  @@index([method])
+  @@index([paymentDate])
+  @@index([processedDate])
+  @@index([transactionId])
+  @@index([gatewayId])
+}
+
+model CreditNote {
+  id              String           @id @default(cuid())
+  code            String
+  invoiceId       String
+  customerId      String
+  type            CreditNoteType
+  status          CreditNoteStatus @default(DRAFT)
+  reason          String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal        Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  appliedAmount   Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  issueDate       DateTime
+  appliedDate     DateTime?
+  voidedDate      DateTime?
+  voidReason      String?
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id])
+  lines           CreditNoteLine[]
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+model CreditNoteLine {
+  id              String           @id @default(cuid())
+  creditNoteId    String
+  lineNumber      Int
+  description     String
+  quantity        Decimal          @db.Decimal(18, 4)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(18, 4)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  taxPercent      Decimal          @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  invoiceLineId   String?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  creditNote      CreditNote       @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@unique([creditNoteId, lineNumber])
+  @@index([creditNoteId])
+  @@index([invoiceLineId])
+}
+
+model DebitNote {
+  id              String           @id @default(cuid())
+  code            String
+  invoiceId       String?
+  customerId      String
+  supplierId      String?
+  type            DebitNoteType
+  status          DebitNoteStatus  @default(DRAFT)
+  reason          String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal        Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  issueDate       DateTime
+  acknowledgedDate DateTime?
+  rejectedDate    DateTime?
+  rejectionReason String?
+  notes           String?
+  internalNotes   String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  lines           DebitNoteLine[]
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+model DebitNoteLine {
+  id              String           @id @default(cuid())
+  debitNoteId     String
+  lineNumber      Int
+  description     String
+  quantity        Decimal          @db.Decimal(18, 4)
+  unit            String
+  unitPrice       Decimal          @db.Decimal(18, 4)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal          @default(0) @db.Decimal(18, 2)
+  taxPercent      Decimal          @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  debitNote       DebitNote        @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@unique([debitNoteId, lineNumber])
+  @@index([debitNoteId])
+}
+
+model Refund {
+  id              String           @id @default(cuid())
+  code            String
+  paymentId       String
+  type            RefundType
+  status          RefundStatus     @default(PENDING)
+  reason          String
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  processedBy     String?
+  processedAt     DateTime?
+  completedAt     DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  refundMethod    PaymentMethod?
+  refundReference String?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  payment         Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([paymentId])
+  @@index([status])
+  @@index([requestedBy])
+}
+
+model PaymentDispute {
+  id              String           @id @default(cuid())
+  paymentId       String
+  code            String
+  type            DisputeType
+  status          DisputeStatus    @default(OPEN)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  initiatedBy     String
+  assignedTo      String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      DisputeResolution?
+  resolutionAmount Decimal?        @db.Decimal(18, 2)
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  payment         Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([paymentId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+}
+
+model InvoiceDocument {
+  id              String           @id @default(cuid())
+  invoiceId       String
+  type            DocumentType
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  isPrimary       Boolean          @default(false)
+  uploadedBy      String
+  uploadedAt      DateTime         @default(now())
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@index([invoiceId])
+  @@index([type])
+}
+
+model InvoiceActivity {
+  id              String           @id @default(cuid())
+  invoiceId       String
+  type            ActivityType
+  description     String
+  userId          String
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@index([invoiceId])
+  @@index([type])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CustomerStatement {
+  id              String           @id @default(cuid())
+  code            String
+  customerId      String
+  periodStart     DateTime
+  periodEnd       DateTime
+  openingBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  totalInvoices   Decimal          @default(0) @db.Decimal(18, 2)
+  totalPayments   Decimal          @default(0) @db.Decimal(18, 2)
+  totalCredits    Decimal          @default(0) @db.Decimal(18, 2)
+  totalDebits     Decimal          @default(0) @db.Decimal(18, 2)
+  closingBalance  Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  status          StatementStatus  @default(GENERATED)
+  generatedAt     DateTime?
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([periodStart, periodEnd])
+  @@index([status])
+}
+
+model AgingReport {
+  id              String           @id @default(cuid())
+  code            String
+  customerId      String?
+  asOfDate        DateTime
+  currency        String           @default("USD")
+  current         Decimal          @default(0) @db.Decimal(18, 2)
+  days1to30       Decimal          @default(0) @db.Decimal(18, 2)
+  days31to60      Decimal          @default(0) @db.Decimal(18, 2)
+  days61to90      Decimal          @default(0) @db.Decimal(18, 2)
+  days91to120     Decimal          @default(0) @db.Decimal(18, 2)
+  daysOver120     Decimal          @default(0) @db.Decimal(18, 2)
+  totalOutstanding Decimal         @db.Decimal(18, 2)
+  tenantId        String
+  branchId        String?
+  generatedAt     DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([asOfDate])
+}
+
+model PaymentGateway {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            GatewayType
+  channel         PaymentChannel
+  config          Json
+  supportedMethods PaymentMethod[]
+  supportedCurrencies String[]    @default([])
+  isActive        Boolean          @default(true)
+  isDefault       Boolean          @default(false)
+  priority        Int              @default(0)
+  feeStructure    Json?
+  limits          Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+}
+
+model PaymentMethodConfig {
+  id              String           @id @default(cuid())
+  gatewayId       String
+  method          PaymentMethod
+  config          Json
+  isEnabled       Boolean          @default(true)
+  minAmount       Decimal?         @db.Decimal(18, 2)
+  maxAmount       Decimal?         @db.Decimal(18, 2)
+  feePercent      Decimal?         @db.Decimal(5, 4)
+  feeFixed        Decimal?         @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  priority        Int              @default(0)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  gateway         PaymentGateway   @relation(fields: [gatewayId], references: [id], onDelete: Cascade)
+
+  @@schema("invoicing")
+  @@index([gatewayId])
+  @@index([method])
+  @@index([isEnabled])
+}
+
+model InvoiceTemplate {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            InvoiceType
+  content         Json
+  variables       String[]         @default([])
+  isDefault       Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("invoicing")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isDefault])
+}
+
+enum InvoiceType {
+  SALES
+  PURCHASE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  PROFORMA
+  RECURRING
+  ADVANCE
+  DEPOSIT
+  FINAL
+  CORRECTION
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  VIEWED
+  PARTIAL_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+  CREDIT_NOTE
+  DEBIT_NOTE
+  DISPUTED
+}
+
+enum LineType {
+  PRODUCT
+  SERVICE
+  FREIGHT
+  CHARGE
+  TAX
+  DISCOUNT
+  OTHER
+}
+
+enum PaymentType {
+  RECEIPT
+  PAYMENT
+  REFUND
+  ADVANCE
+  DEPOSIT
+  ADJUSTMENT
+  WRITE_OFF
+  TRANSFER
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+  CHECK
+  LETTER_OF_CREDIT
+  BANK_GUARANTEE
+  ONLINE_PAYMENT
+  CRYPTO
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIAL
+  CANCELLED
+  ON_HOLD
+  DISPUTED
+}
+
+enum CreditNoteType {
+  RETURN
+  DISCOUNT
+  REBATE
+  ADJUSTMENT
+  CANCELLATION
+  WRITE_OFF
+  OVERPAYMENT
+  DAMAGE
+  SHORTAGE
+  PRICING_ERROR
+  OTHER
+}
+
+enum CreditNoteStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  APPLIED
+  PARTIALLY_APPLIED
+  VOIDED
+  REJECTED
+}
+
+enum DebitNoteType {
+  ADDITIONAL_CHARGE
+  UNDERBILLING
+  PENALTY
+  INTEREST
+  ADJUSTMENT
+  TAX_ADJUSTMENT
+  REBILLING
+  OTHER
+}
+
+enum DebitNoteStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ISSUED
+  ACKNOWLEDGED
+  REJECTED
+  WITHDRAWN
+}
+
+enum RefundType {
+  FULL
+  PARTIAL
+  GOODWILL
+  ERROR_CORRECTION
+  CANCELLATION
+  RETURN
+  WARRANTY
+  OTHER
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+enum DisputeType {
+  CHARGEBACK
+  FRAUD
+  NOT_RECEIVED
+  NOT_AS_DESCRIBED
+  DUPLICATE
+  AMOUNT_DISPUTE
+  AUTHORIZATION
+  CANCELLED_RECURRING
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  EVIDENCE_SUBMITTED
+  EVIDENCE_REVIEW
+  RESOLVED_WON
+  RESOLVED_LOST
+  WITHDRAWN
+  ARBITRATION
+}
+
+enum DisputeResolution {
+  MERCHANT_WON
+  CUSTOMER_WON
+  SPLIT
+  SETTLED
+  WITHDRAWN
+}
+
+enum RefundType {
+  FULL
+  PARTIAL
+  GOODWILL
+  ERROR_CORRECTION
+  CANCELLATION
+  RETURN
+  WARRANTY
+  OTHER
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+enum DocumentType {
+  INVOICE_PDF
+  INVOICE_XML
+  INVOICE_JSON
+  RECEIPT
+  DELIVERY_NOTE
+  PURCHASE_ORDER
+  CONTRACT
+  TAX_CERTIFICATE
+  CUSTOMER_PO
+  OTHER
+}
+
+enum ActivityType {
+  CREATED
+  UPDATED
+  APPROVED
+  SENT
+  VIEWED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  REFUND_ISSUED
+  CREDIT_NOTE_ISSUED
+  DEBIT_NOTE_ISSUED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  OVERDUE
+  CANCELLED
+  VOIDED
+  PRINTED
+  DOWNLOADED
+  EMAILED
+}
+
+enum StatementStatus {
+  GENERATED
+  SENT
+  VIEWED
+  DOWNLOADED
+  ARCHIVED
+}
+
+enum GatewayType {
+  STRIPE
+  PAYPAL
+  ADYEN
+  BRAINTREE
+  AUTHORIZE_NET
+  WORLDPAY
+  CYBERSOURCE
+  BLUEPAY
+  SQUARE
+  SHOPIFY_PAYMENTS
+  AMAZON_PAY
+  APPLE_PAY
+  GOOGLE_PAY
+  BANK_TRANSFER
+  CUSTOM
+}
+
+enum PaymentChannel {
+  ONLINE
+  POS
+  MOBILE
+  RECURRING
+  INVOICE
+  MANUAL
+}

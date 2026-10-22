@@ -1,0 +1,400 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["portal", "public"]
+}
+
+model PortalUser {
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  customerId      String
+  email           String
+  firstName       String
+  lastName       String
+  phone           String?
+  mobile          String?
+  avatar          String?
+  preferences     Json?
+  notificationSettings Json?
+  uiPreferences   Json?
+  lastLoginAt     DateTime?
+  lastActivityAt  DateTime?
+  isActive        Boolean          @default(true)
+  emailVerified   Boolean          @default(false)
+  mfaEnabled      Boolean          @default(false)
+  mfaSecret       String?
+  mfaBackupCodes  String[]         @default([])
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  sessions        PortalSession[]
+  notifications   Notification[]
+  supportTickets  SupportTicket[]
+  favorites       Favorite[]
+  activities      PortalActivity[]
+
+  @@schema("portal")
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([userId])
+  @@index([isActive])
+}
+
+model PortalSession {
+  id              String   @id @default(cuid())
+  userId          String
+  token           String   @unique
+  ipAddress       String?
+  userAgent       String?
+  deviceInfo      Json?
+  location        Json?
+  expiresAt       DateTime
+  lastActivityAt  DateTime
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            PortalUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("portal")
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@index([isActive])
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  userId          String
+  type            NotificationType
+  channel         NotificationChannel
+  priority        NotificationPriority
+  title           String
+  message         String
+  data            Json?
+  readAt          DateTime?
+  archivedAt      DateTime?
+  sentAt          DateTime
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            PortalUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("portal")
+  @@index([userId])
+  @@index([type])
+  @@index([channel])
+  @@index([readAt])
+  @@index([sentAt])
+}
+
+model SupportTicket {
+  id              String           @id @default(cuid())
+  code            String
+  userId          String
+  type            TicketType
+  category        TicketCategory
+  priority        Priority
+  status          TicketStatus     @default(OPEN)
+  subject         String
+  description     String
+  assignedTo      String?
+  assignedAt      DateTime?
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  closedBy        String?
+  slaDueAt        DateTime?
+  slaBreached     Boolean          @default(false)
+  satisfaction    Int?
+  feedback        String?
+  tags            String[]         @default([])
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            PortalUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        TicketMessage[]
+
+  @@schema("portal")
+  @@unique([tenantId, code])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([createdAt])
+}
+
+model TicketMessage {
+  id              String       @id @default(cuid())
+  ticketId        String
+  senderId        String
+  senderType      SenderType
+  content         String
+  isInternal      Boolean      @default(false)
+  attachments     String[]     @default([])
+  readAt          DateTime?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+
+  ticket          SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@schema("portal")
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model Favorite {
+  id              String   @id @default(cuid())
+  userId          String
+  entityType      String
+  entityId        String
+  name            String
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  user            PortalUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("portal")
+  @@unique([userId, entityType, entityId])
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+model PortalActivity {
+  id              String   @id @default(cuid())
+  userId          String
+  type            ActivityType
+  action          String
+  entityType      String?
+  entityId        String?
+  description     String
+  ipAddress       String?
+  userAgent       String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  user            PortalUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("portal")
+  @@index([userId])
+  @@index([type])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model WidgetConfig {
+  id              String   @id @default(cuid())
+  userId          String
+  widgetId        String
+  position        Json
+  size            Json
+  config          Json
+  isVisible       Boolean  @default(true)
+  order           Int      @default(0)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("portal")
+  @@unique([userId, widgetId])
+  @@index([userId])
+}
+
+model DashboardConfig {
+  id              String   @id @default(cuid())
+  userId          String
+  layout          Json
+  theme           String   @default("light")
+  refreshInterval Int      @default(300)
+  widgets         Json
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("portal")
+  @@unique([userId])
+  @@index([userId])
+}
+
+model PortalSettings {
+  id              String   @id @default(cuid())
+  userId          String
+  language        String   @default("en")
+  timezone        String   @default("UTC")
+  dateFormat      String   @default("YYYY-MM-DD")
+  timeFormat      String   @default("24h")
+  currency        String   @default("USD")
+  notifications   Json
+  emailDigest     Boolean  @default(true)
+  smsAlerts       Boolean  @default(false)
+  pushAlerts      Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("portal")
+  @@unique([userId])
+  @@index([userId])
+}
+
+enum NotificationType {
+  SHIPMENT_UPDATE
+  MILESTONE_REACHED
+  DELAY_ALERT
+  EXCEPTION_ALERT
+  TEMPERATURE_ALERT
+  CUSTOMS_ALERT
+  DOCUMENT_REQUIRED
+  PAYMENT_REMINDER
+  DELIVERY_SCHEDULED
+  DELIVERY_COMPLETED
+  PICKUP_SCHEDULED
+  PICKUP_COMPLETED
+  DOCUMENT_RECEIVED
+  DOCUMENT_VERIFIED
+  PAYMENT_RECEIVED
+  QUOTE_READY
+  QUOTE_EXPIRING
+  BOOKING_CONFIRMED
+  BOOKING_CHANGED
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  INVOICE_GENERATED
+  INVOICE_PAID
+  INVOICE_OVERDUE
+  CREDIT_NOTE_ISSUED
+  DEBIT_NOTE_ISSUED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  TICKET_CREATED
+  TICKET_UPDATED
+  TICKET_RESOLVED
+  SYSTEM_MAINTENANCE
+  SYSTEM_ANNOUNCEMENT
+  OTHER
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum TicketType {
+  TECHNICAL
+  BILLING
+  SHIPMENT
+  DOCUMENT
+  CUSTOMS
+  PAYMENT
+  GENERAL
+  COMPLAINT
+  FEATURE_REQUEST
+  BUG_REPORT
+}
+
+enum TicketCategory {
+  SHIPMENT_TRACKING
+  DOCUMENTATION
+  BILLING_INVOICING
+  CUSTOMS_CLEARANCE
+  PAYMENTS
+  BOOKING
+  QUOTATION
+  ACCOUNT_ACCESS
+  TECHNICAL_ISSUE
+  SERVICE_QUALITY
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  WAITING_THIRD_PARTY
+  RESOLVED
+  CLOSED
+  REOPENED
+  ESCALATED
+}
+
+enum SenderType {
+  CUSTOMER
+  AGENT
+  SYSTEM
+  BOT
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  PAGE_VIEW
+  SHIPMENT_VIEW
+  DOCUMENT_DOWNLOAD
+  DOCUMENT_UPLOAD
+  INVOICE_VIEW
+  INVOICE_DOWNLOAD
+  PAYMENT_MADE
+  QUOTE_REQUESTED
+  QUOTE_VIEWED
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  BOOKING_CREATED
+  BOOKING_MODIFIED
+  BOOKING_CANCELLED
+  SHIPMENT_TRACKED
+  DOCUMENT_UPLOADED
+  DOCUMENT_DOWNLOADED
+  SETTINGS_CHANGED
+  PROFILE_UPDATED
+  NOTIFICATION_READ
+  TICKET_CREATED
+  TICKET_UPDATED
+  SUPPORT_CONTACTED
+  FAVORITE_ADDED
+  FAVORITE_REMOVED
+  SETTINGS_CHANGED
+  PASSWORD_CHANGED
+  MFA_ENABLED
+  MFA_DISABLED
+}

@@ -1,0 +1,575 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["notification", "public"]
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  code            String
+  type            NotificationType
+  channel         NotificationChannel
+  priority        NotificationPriority
+  title           String
+  message         String
+  templateId      String?
+  templateData    Json?
+  recipientType   RecipientType
+  recipientId     String?
+  recipientEmail  String?
+  recipientPhone  String?
+  recipientToken  String?
+  senderId        String?
+  senderName      String?
+  subject         String?
+  htmlContent     String?
+  textContent     String?
+  attachments     NotificationAttachment[]
+  status          NotificationStatus @default(PENDING)
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  clickedAt       DateTime?
+  failedAt        DateTime?
+  failedReason    String?
+  retryCount      Int              @default(0)
+  maxRetries      Int              @default(3)
+  nextRetryAt     DateTime?
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  template        NotificationTemplate? @relation(fields: [templateId], references: [id])
+  events          NotificationEvent[]
+
+  @@schema("notification")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([status])
+  @@index([recipientType, recipientId])
+  @@index([recipientEmail])
+  @@index([recipientPhone])
+  @@index([scheduledAt])
+  @@index([sentAt])
+  @@index([createdAt])
+}
+
+model NotificationEvent {
+  id              String           @id @default(cuid())
+  notificationId  String
+  type            NotificationEventType
+  channel         NotificationChannel
+  status          EventStatus
+  provider        String?
+  providerId      String?
+  providerResponse Json?
+  errorMessage    String?
+  timestamp       DateTime         @default(now())
+  metadata        Json?
+  tenantId        String
+
+  notification    Notification     @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@schema("notification")
+  @@index([notificationId])
+  @@index([type])
+  @@index([channel])
+  @@index([status])
+  @@index([timestamp])
+}
+
+model NotificationTemplate {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            NotificationType
+  channel         NotificationChannel
+  subject         String?
+  htmlContent     String?
+  textContent     String?
+  variables       Json?
+  sampleData      Json?
+  isActive        Boolean          @default(true)
+  isSystem        Boolean          @default(false)
+  version         Int              @default(1)
+  locale          String           @default("en")
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  notifications   Notification[]
+
+  @@schema("notification")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+  @@index([isSystem])
+  @@index([locale])
+}
+
+model NotificationAttachment {
+  id              String   @id @default(cuid())
+  notificationId  String
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  contentId       String?
+  isInline        Boolean  @default(false)
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  notification    Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@schema("notification")
+  @@index([notificationId])
+}
+
+model Subscription {
+  id              String           @id @default(cuid())
+  userId          String
+  type            NotificationType
+  channels        NotificationChannel[]
+  events          String[]
+  filters         Json?
+  isActive        Boolean          @default(true)
+  frequency       SubscriptionFrequency
+  quietHoursStart String?
+  quietHoursEnd   String?
+  timezone        String           @default("UTC")
+  preferences     Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("notification")
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model NotificationPreference {
+  id              String           @id @default(cuid())
+  userId          String
+  type            NotificationType
+  channel         NotificationChannel
+  isEnabled       Boolean          @default(true)
+  frequency       SubscriptionFrequency
+  quietHoursStart String?
+  quietHoursEnd   String?
+  timezone        String           @default("UTC")
+  filters         Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("notification")
+  @@unique([userId, type, channel])
+  @@index([userId])
+  @@index([type])
+  @@index([channel])
+}
+
+model Provider {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            ProviderType
+  channel         NotificationChannel
+  config          Json
+  credentials     Json
+  isActive        Boolean          @default(true)
+  isDefault       Boolean          @default(false)
+  priority        Int              @default(0)
+  rateLimit       RateLimitConfig?
+  supportedEvents String[]         @default([])
+  supportedCountries String[]      @default([])
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("notification")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+model ProviderConfig {
+  id              String           @id @default(cuid())
+  providerId      String
+  key             String
+  value           String
+  isEncrypted     Boolean          @default(false)
+  description     String?
+  isRequired      Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  provider        Provider         @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@schema("notification")
+  @@index([providerId])
+  @@index([key])
+}
+
+model Queue {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            QueueType
+  channel         NotificationChannel
+  priority        QueuePriority
+  concurrency     Int              @default(10)
+  maxRetries      Int              @default(3)
+  retryDelay      Int              @default(60000)
+  backoffType     BackoffType      @default(EXPONENTIAL)
+  isActive        Boolean          @default(true)
+  isPaused        Boolean          @default(false)
+  pausedAt        DateTime?
+  pausedBy        String?
+  processedCount  BigInt           @default(0)
+  failedCount     BigInt           @default(0)
+  avgProcessTime  Int              @default(0)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  messages        QueueMessage[]
+
+  @@schema("notification")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+  @@index([isPaused])
+}
+
+model QueueMessage {
+  id              String           @id @default(cuid())
+  queueId         String
+  notificationId  String
+  priority        QueuePriority
+  status          MessageStatus    @default(QUEUED)
+  payload         Json
+  attempts        Int              @default(0)
+  maxRetries      Int              @default(3)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  processedAt     DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  errorStack      String?
+  retryCount      Int              @default(0)
+  nextRetryAt     DateTime?
+  lockId          String?
+  lockedAt        DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  queue           Queue            @relation(fields: [queueId], references: [id], onDelete: Cascade)
+
+  @@schema("notification")
+  @@index([queueId])
+  @@index([notificationId])
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledAt])
+}
+
+model ScheduledNotification {
+  id              String           @id @default(cuid())
+  code            String
+  notificationId  String
+  cronExpression  String
+  timezone        String           @default("UTC")
+  parameters      Json?
+  isActive        Boolean          @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  runCount        Int              @default(0)
+  maxRuns         Int?
+  lastStatus      ScheduleRunStatus?
+  lastError       String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("notification")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([notificationId])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+model NotificationAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime
+  channel         NotificationChannel
+  type            NotificationType
+  sentCount       Int      @default(0)
+  deliveredCount  Int      @default(0)
+  failedCount     Int      @default(0)
+  openedCount     Int      @default(0)
+  clickedCount    Int      @default(0)
+  bouncedCount    Int      @default(0)
+  unsubscribedCount Int    @default(0)
+  complaintCount  Int      @default(0)
+  avgDeliveryTime Int?
+  avgOpenTime     Int?
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  @@schema("notification")
+  @@unique([tenantId, channel, type, date])
+  @@index([tenantId])
+  @@index([channel])
+  @@index([type])
+  @@index([date])
+}
+
+enum NotificationType {
+  SHIPMENT_UPDATE
+  MILESTONE_REACHED
+  DELAY_ALERT
+  EXCEPTION_ALERT
+  TEMPERATURE_ALERT
+  CUSTOMS_ALERT
+  DOCUMENT_REQUIRED
+  PAYMENT_REMINDER
+  DELIVERY_SCHEDULED
+  DELIVERY_COMPLETED
+  PICKUP_SCHEDULED
+  PICKUP_COMPLETED
+  DOCUMENT_RECEIVED
+  DOCUMENT_VERIFIED
+  PAYMENT_RECEIVED
+  QUOTE_READY
+  QUOTE_EXPIRING
+  BOOKING_CONFIRMED
+  BOOKING_CHANGED
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  INVOICE_GENERATED
+  INVOICE_PAID
+  INVOICE_OVERDUE
+  CREDIT_NOTE_ISSUED
+  DEBIT_NOTE_ISSUED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  TICKET_CREATED
+  TICKET_UPDATED
+  TICKET_RESOLVED
+  SYSTEM_MAINTENANCE
+  SYSTEM_ANNOUNCEMENT
+  OTHER
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+  VOICE
+  FAX
+  PRINT
+  POSTAL
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum RecipientType {
+  USER
+  ROLE
+  GROUP
+  DEPARTMENT
+  TEAM
+  ORGANIZATION
+  EMAIL
+  PHONE
+  DEVICE_TOKEN
+  WEBHOOK_URL
+}
+
+enum NotificationStatus {
+  PENDING
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  CLICKED
+  FAILED
+  BOUNCED
+  REJECTED
+  EXPIRED
+  CANCELLED
+  SUPPRESSED
+}
+
+enum NotificationEventType {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  CLICKED
+  FAILED
+  BOUNCED
+  REJECTED
+  OPENED
+  CLICKED
+  UNSUBSCRIBED
+  COMPLAINT
+  RETRY
+}
+
+enum EventStatus {
+  SUCCESS
+  FAILED
+  PENDING
+  RETRYING
+}
+
+enum RecipientType {
+  USER
+  ROLE
+  GROUP
+  DEPARTMENT
+  TEAM
+  ORGANIZATION
+  EMAIL
+  PHONE
+  DEVICE_TOKEN
+  WEBHOOK_URL
+}
+
+enum SubscriptionFrequency {
+  REAL_TIME
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ON_CHANGE
+  ON_THRESHOLD
+  DIGEST
+}
+
+enum ProviderType {
+  SMTP
+  SENDGRID
+  MAILGUN
+  SES
+  POSTMARK
+  TWILIO
+  VONAGE
+  PLIVO
+  FIREBASE
+  ONESIGNAL
+  PUSHER
+  SLACK
+  TEAMS
+  WHATSAPP_BUSINESS
+  VOICE
+  FAX
+  PRINT
+  POSTAL
+  CUSTOM
+}
+
+enum QueueType {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  PRIORITY
+  BATCH
+  SCHEDULED
+  RETRY
+  DEAD_LETTER
+}
+
+enum QueuePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum BackoffType {
+  FIXED
+  LINEAR
+  EXPONENTIAL
+  RANDOM
+}
+
+enum MessageStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+  CANCELLED
+  EXPIRED
+}
+
+enum ScheduleRunStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+  PARTIAL
+}
+
+enum ScheduleRunStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+  PARTIAL
+}

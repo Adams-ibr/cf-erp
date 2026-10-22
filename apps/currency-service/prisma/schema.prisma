@@ -1,0 +1,503 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["currency", "public"]
+}
+
+model Currency {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  symbol          String
+  numericCode     String
+  decimalPlaces   Int      @default(2)
+  symbolPosition  SymbolPosition @default(PREFIX)
+  separator       String   @default(".")
+  thousandsSeparator String @default(",")
+  isActive        Boolean  @default(true)
+  isBase          Boolean  @default(false)
+  isCrypto        Boolean  @default(false)
+  exchangeRate    Decimal? @db.Decimal(18, 6)
+  baseCurrency    String?
+  lastUpdated     DateTime?
+  source          String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  ratesFrom       ExchangeRate[] @relation("ExchangeRateFrom")
+  ratesTo         ExchangeRate[] @relation("ExchangeRateTo")
+  conversions     Conversion[]
+  alerts          CurrencyAlert[]
+  transactions    Transaction[]
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([isBase])
+  @@index([isCrypto])
+}
+
+model ExchangeRate {
+  id              String   @id @default(cuid())
+  fromCurrencyId  String
+  toCurrencyId    String
+  rate            Decimal  @db.Decimal(18, 6)
+  inverseRate     Decimal? @db.Decimal(18, 6)
+  date            DateTime
+  source          String
+  isOfficial      Boolean  @default(false)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fromCurrency    Currency @relation("ExchangeRateFrom", fields: [fromCurrencyId], references: [id])
+  toCurrency      Currency @relation("ExchangeRateTo", fields: [toCurrencyId], references: [id])
+
+  @@schema("currency")
+  @@unique([fromCurrencyId, toCurrencyId, date])
+  @@index([fromCurrencyId])
+  @@index([toCurrencyId])
+  @@index([date])
+  @@index([source])
+}
+
+model HistoricalRate {
+  id              String   @id @default(cuid())
+  fromCurrencyId  String
+  toCurrencyId    String
+  rate            Decimal  @db.Decimal(18, 6)
+  date            DateTime
+  source          String
+  high            Decimal? @db.Decimal(18, 6)
+  low             Decimal? @db.Decimal(18, 6)
+  open            Decimal? @db.Decimal(18, 6)
+  close           Decimal? @db.Decimal(18, 6)
+  volume          Decimal? @db.Decimal(18, 2)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("currency")
+  @@unique([fromCurrencyId, toCurrencyId, date])
+  @@index([fromCurrencyId])
+  @@index([toCurrencyId])
+  @@index([date])
+}
+
+model Conversion {
+  id              String        @id @default(cuid())
+  code            String
+  fromCurrencyId  String
+  toCurrencyId    String
+  fromAmount      Decimal       @db.Decimal(18, 4)
+  toAmount        Decimal       @db.Decimal(18, 4)
+  rate            Decimal       @db.Decimal(18, 6)
+  fee             Decimal       @default(0) @db.Decimal(18, 4)
+  netAmount       Decimal       @db.Decimal(18, 4)
+  status          ConversionStatus @default(PENDING)
+  reference       String?
+  transactionId   String?
+  userId          String?
+  processedAt     DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  fromCurrency    Currency       @relation(fields: [fromCurrencyId], references: [id])
+  toCurrency      Currency       @relation(fields: [toCurrencyId], references: [id])
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([fromCurrencyId])
+  @@index([toCurrencyId])
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CurrencyAlert {
+  id              String           @id @default(cuid())
+  code            String
+  currencyId      String
+  type            AlertType
+  condition       Json
+  threshold       Decimal          @db.Decimal(18, 6)
+  isActive        Boolean          @default(true)
+  triggeredAt     DateTime?
+  triggeredValue  Decimal?         @db.Decimal(18, 6)
+  notifiedAt      DateTime?
+  notifiedChannels NotificationChannel[]
+  cooldownMinutes Int              @default(60)
+  maxAlertsPerDay Int              @default(10)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  currency        Currency         @relation(fields: [currencyId], references: [id])
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([currencyId])
+  @@index([isActive])
+}
+
+model RateProvider {
+  id              String        @id @default(cuid())
+  code            String
+  name            String
+  type            ProviderType
+  baseUrl         String
+  apiKey          String?
+  apiSecret       String?
+  supportedPairs  String[]
+  supportedCurrencies String[]
+  rateLimit       Int?
+  timeout         Int           @default(30)
+  priority        Int           @default(0)
+  isActive        Boolean       @default(true)
+  lastSyncAt      DateTime?
+  lastError       String?
+  config          Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model CurrencyAccount {
+  id              String        @id @default(cuid())
+  code            String
+  name            String
+  currencyId      String
+  type            AccountType
+  balance         Decimal       @default(0) @db.Decimal(18, 4)
+  availableBalance Decimal      @default(0) @db.Decimal(18, 4)
+  pendingBalance  Decimal       @default(0) @db.Decimal(18, 4)
+  reservedBalance Decimal       @default(0) @db.Decimal(18, 4)
+  status          AccountStatus @default(ACTIVE)
+  institution     String?
+  accountNumber   String?
+  iban            String?
+  swiftBic        String?
+  routingNumber   String?
+  branchName      String?
+  branchAddress   Json?
+  isDefault       Boolean       @default(false)
+  isPrimary       Boolean       @default(false)
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  userId          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  transactions    Transaction[]
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([currencyId])
+  @@index([status])
+  @@index([userId])
+}
+
+model Transaction {
+  id              String           @id @default(cuid())
+  code            String
+  accountId       String
+  currencyId      String
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal          @db.Decimal(18, 4)
+  fee             Decimal          @default(0) @db.Decimal(18, 4)
+  netAmount       Decimal          @db.Decimal(18, 4)
+  fromCurrencyId  String?
+  toCurrencyId    String?
+  exchangeRate    Decimal?         @db.Decimal(18, 6)
+  fromAmount      Decimal?         @db.Decimal(18, 4)
+  toAmount        Decimal?         @db.Decimal(18, 4)
+  reference       String?
+  description     String?
+  counterparty    String?
+  counterpartyAccount String?
+  counterpartyBank String?
+  initiatedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  processedAt     DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  account         CurrencyAccount  @relation(fields: [accountId], references: [id])
+  currency        Currency         @relation(fields: [currencyId], references: [id])
+  fromCurrency    Currency?        @relation("TransactionFromCurrency", fields: [fromCurrencyId], references: [id])
+  toCurrency      Currency?        @relation("TransactionToCurrency", fields: [toCurrencyId], references: [id])
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([accountId])
+  @@index([currencyId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Settlement {
+  id              String   @id @default(cuid())
+  code            String
+  type            SettlementType
+  status          SettlementStatus @default(PENDING)
+  fromCurrencyId  String
+  toCurrencyId    String
+  fromAmount      Decimal       @db.Decimal(18, 4)
+  toAmount        Decimal       @db.Decimal(18, 4)
+  rate            Decimal       @db.Decimal(18, 6)
+  fee             Decimal       @default(0) @db.Decimal(18, 4)
+  netAmount       Decimal       @db.Decimal(18, 4)
+  reference       String?
+  transactionIds  String[]
+  initiatedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  processedAt     DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([fromCurrencyId])
+  @@index([toCurrencyId])
+  @@index([createdAt])
+}
+
+model ExchangeRateHistory {
+  id              String   @id @default(cuid())
+  fromCurrencyId  String
+  toCurrencyId    String
+  rate            Decimal  @db.Decimal(18, 6)
+  date            DateTime
+  source          String
+  high            Decimal? @db.Decimal(18, 6)
+  low             Decimal? @db.Decimal(18, 6)
+  open            Decimal? @db.Decimal(18, 6)
+  close           Decimal? @db.Decimal(18, 6)
+  volume          Decimal? @db.Decimal(18, 2)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("currency")
+  @@unique([fromCurrencyId, toCurrencyId, date])
+  @@index([fromCurrencyId])
+  @@index([toCurrencyId])
+  @@index([date])
+}
+
+model CurrencyReport {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  type            ReportType
+  periodStart     DateTime
+  periodEnd       DateTime
+  filters         Json?
+  data            Json
+  status          ReportStatus @default(GENERATING)
+  generatedAt     DateTime?
+  generatedBy     String?
+  downloadedAt    DateTime?
+  downloadedBy    String?
+  fileUrl         String?
+  fileSize        BigInt?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("currency")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([periodStart, periodEnd])
+  @@index([status])
+}
+
+enum SymbolPosition {
+  PREFIX
+  SUFFIX
+}
+
+enum ConversionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum AlertType {
+  RATE_ABOVE
+  RATE_BELOW
+  RATE_CHANGE_PERCENT
+  VOLATILITY
+  VOLUME_SPIKE
+  SPREAD_WIDENING
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}
+
+enum ProviderType {
+  CENTRAL_BANK
+  COMMERCIAL_BANK
+  FOREX_BROKER
+  CRYPTO_EXCHANGE
+  API_PROVIDER
+  INTERNAL
+  AGGREGATOR
+}
+
+enum AccountType {
+  SPOT
+  FORWARD
+  OPTIONS
+  FUTURES
+  SWAP
+  MULTI_CURRENCY
+  CRYPTO_WALLET
+  BANK_ACCOUNT
+  PAYMENT_GATEWAY
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  FROZEN
+  CLOSED
+  SUSPENDED
+  PENDING_VERIFICATION
+  UNDER_REVIEW
+}
+
+enum TransactionType {
+  CONVERSION
+  TRANSFER
+  DEPOSIT
+  WITHDRAWAL
+  PAYMENT
+  RECEIPT
+  REFUND
+  FEE
+  INTEREST
+  DIVIDEND
+  SETTLEMENT
+  HEDGE
+  ARBITRAGE
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REJECTED
+  REVERSED
+  ON_HOLD
+  UNDER_REVIEW
+}
+
+enum SettlementType {
+  NET_SETTLEMENT
+  GROSS_SETTLEMENT
+  MULTILATERAL
+  BILATERAL
+  CLS
+  SWIFT
+  SEPA
+  ACH
+  RTGS
+  CUSTOM
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  SETTLED
+  FAILED
+  CANCELLED
+  REJECTED
+  PARTIAL
+}
+
+enum ReportType {
+  POSITION
+  TRANSACTIONS
+  PNL
+  EXPOSURE
+  VOLUME
+  FEES
+  SPREADS
+  VOLATILITY
+  CORRELATION
+  VAR
+  STRESS_TEST
+}
+
+enum ReportStatus {
+  DRAFT
+  GENERATING
+  GENERATED
+  FAILED
+  EXPIRED
+}

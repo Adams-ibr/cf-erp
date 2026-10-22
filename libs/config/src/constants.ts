@@ -1,0 +1,120 @@
+export const CONFIG_CONSTANTS = {
+  APP: {
+    NAME: 'CF-ERP',
+    VERSION: '1.0.0',
+    DEFAULT_PORT: 3000,
+    DEFAULT_HOST: '0.0.0.0',
+    DEFAULT_API_PREFIX: 'api/v1',
+  },
+
+  DATABASE: {
+    DEFAULT_PORT: 5432,
+    DEFAULT_POOL_SIZE: 10,
+    DEFAULT_CONNECTION_TIMEOUT: 30000,
+    DEFAULT_SSL: false,
+  },
+
+  REDIS: {
+    DEFAULT_PORT: 6379,
+    DEFAULT_DB: 0,
+    DEFAULT_CONNECTION_TIMEOUT: 10000,
+    DEFAULT_MAX_RETRIES: 3,
+  },
+
+  JWT: {
+    DEFAULT_EXPIRES_IN: '24h',
+    DEFAULT_REFRESH_EXPIRES_IN: '7d',
+    DEFAULT_ISSUER: 'cf-erp',
+    DEFAULT_AUDIENCE: 'cf-erp-api',
+    MIN_SECRET_LENGTH: 32,
+  },
+
+  RABBITMQ: {
+    DEFAULT_PORT: 5672,
+    DEFAULT_VHOST: '/',
+    DEFAULT_CONNECTION_TIMEOUT: 10000,
+    DEFAULT_HEARTBEAT: 60,
+  },
+
+  KAFKA: {
+    DEFAULT_CLIENT_ID: 'cf-erp',
+    DEFAULT_GROUP_ID: 'cf-erp-group',
+    DEFAULT_SSL: false,
+    DEFAULT_SASL: false,
+  },
+
+  EMAIL: {
+    DEFAULT_PROVIDER: 'smtp',
+    DEFAULT_PORT: 587,
+    DEFAULT_SECURE: false,
+    DEFAULT_FROM: 'noreply@cf-erp.com',
+    DEFAULT_FROM_NAME: 'CF-ERP',
+  },
+
+  SMS: {
+    DEFAULT_PROVIDER: 'twilio',
+  },
+
+  PUSH: {
+    DEFAULT_PROVIDER: 'firebase',
+  },
+
+  STORAGE: {
+    DEFAULT_PROVIDER: 'local',
+    DEFAULT_MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  },
+
+  LOGGING: {
+    DEFAULT_LEVEL: 'info',
+    DEFAULT_FORMAT: 'json',
+    DEFAULT_DIR: './logs',
+    DEFAULT_MAX_FILES: 30,
+    DEFAULT_MAX_SIZE: '10m',
+  },
+
+  MONITORING: {
+    DEFAULT_PROMETHEUS_PORT: 9090,
+    DEFAULT_PROMETHEUS_PATH: '/metrics',
+    DEFAULT_SENTRY_TRACES_SAMPLE_RATE: 0.1,
+    DEFAULT_DATADOG_SITE: 'datadoghq.com',
+  },
+
+  RATE_LIMIT: {
+    DEFAULT_ENABLED: true,
+    DEFAULT_WINDOW_MS: 60000,
+    DEFAULT_MAX_REQUESTS: 100,
+    DEFAULT_SKIP_SUCCESS: false,
+    DEFAULT_SKIP_FAILED: false,
+  },
+
+  CORS: {
+    DEFAULT_ORIGIN: '*',
+    DEFAULT_METHODS: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+    DEFAULT_ALLOWED_HEADERS: ['Content-Type', 'Authorization'],
+    DEFAULT_CREDENTIALS: false,
+    DEFAULT_MAX_AGE: 86400,
+  },
+
+  SWAGGER: {
+    DEFAULT_ENABLED: true,
+    DEFAULT_PATH: 'api/docs',
+    DEFAULT_TITLE: 'CF-ERP API',
+    DEFAULT_VERSION: '1.0.0',
+  },
+
+  FEATURE_FLAGS: {
+    DEFAULT_CUSTOMER_PORTAL: false,
+    DEFAULT_MOBILE_APP: false,
+    DEFAULT_AI_ASSISTANT: false,
+    DEFAULT_ADVANCED_ANALYTICS: false,
+    DEFAULT_BLOCKCHAIN_TRACKING: false,
+  },
+
+  INTEGRATIONS: {
+    DEFAULT_CUSTOMS_ENABLED: false,
+    DEFAULT_SHIPPING_LINES_ENABLED: false,
+    DEFAULT_PORTS_ENABLED: false,
+    DEFAULT_BANKS_ENABLED: false,
+    DEFAULT_ERP_ENABLED: false,
+  },
+} as const;

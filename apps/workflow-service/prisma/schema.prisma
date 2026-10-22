@@ -1,0 +1,895 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["workflow", "public"]
+}
+
+model Workflow {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  version         Int              @default(1)
+  status          WorkflowStatus   @default(DRAFT)
+  category        WorkflowCategory
+  trigger         WorkflowTrigger
+  triggerConfig   Json?
+  variables       Json?
+  isActive        Boolean          @default(true)
+  isSystem        Boolean          @default(false)
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  steps           WorkflowStep[]
+  executions      WorkflowExecution[]
+  schedules       WorkflowSchedule[]
+  rules           WorkflowRule[]
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([status])
+  @@index([category])
+  @@index([trigger])
+  @@index([isActive])
+  @@index([isSystem])
+}
+
+model WorkflowStep {
+  id              String           @id @default(cuid())
+  workflowId      String
+  stepNumber      Int
+  name            String
+  description     String?
+  type            StepType
+  config          Json
+  condition       Json?
+  retryConfig     Json?
+  timeout         Int?
+  retryCount      Int              @default(3)
+  retryDelay      Int              @default(60)
+  isRequired      Boolean          @default(true)
+  onFailure       FailureAction    @default(STOP)
+  timeoutAction   TimeoutAction    @default(FAIL)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workflow        Workflow         @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  executions      StepExecution[]
+
+  @@schema("workflow")
+  @@unique([workflowId, stepNumber])
+  @@index([workflowId])
+  @@index([type])
+}
+
+model WorkflowExecution {
+  id              String           @id @default(cuid())
+  workflowId      String
+  triggerId       String?
+  status          ExecutionStatus  @default(PENDING)
+  priority        Priority
+  inputData       Json
+  outputData      Json?
+  currentStep     Int?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  errorStack      String?
+  retryCount      Int              @default(0)
+  maxRetries      Int              @default(3)
+  variables       Json?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  triggeredBy     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workflow        Workflow         @relation(fields: [workflowId], references: [id])
+  steps           StepExecution[]
+
+  @@schema("workflow")
+  @@index([tenantId])
+  @@index([workflowId])
+  @@index([status])
+  @@index([triggeredBy])
+  @@index([createdAt])
+}
+
+model StepExecution {
+  id              String           @id @default(cuid())
+  executionId     String
+  stepId          String
+  stepNumber      Int
+  status          StepExecutionStatus @default(PENDING)
+  inputData       Json
+  outputData      Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  errorStack      String?
+  retryCount      Int              @default(0)
+  maxRetries      Int              @default(3)
+  assignedTo      String?
+  assignedAt      DateTime?
+  completedBy     String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  execution       WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  step            WorkflowStep      @relation(fields: [stepId], references: [id])
+
+  @@schema("workflow")
+  @@unique([executionId, stepId])
+  @@index([executionId])
+  @@index([stepId])
+  @@index([status])
+  @@index([assignedTo])
+}
+
+model WorkflowSchedule {
+  id              String           @id @default(cuid())
+  workflowId      String
+  code            String
+  name            String
+  description     String?
+  cronExpression  String
+  timezone        String           @default("UTC")
+  inputData       Json?
+  isActive        Boolean          @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  runCount        Int              @default(0)
+  maxRuns         Int?
+  lastStatus      ScheduleRunStatus?
+  lastError       String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workflow        Workflow         @relation(fields: [workflowId], references: [id])
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([workflowId])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+model WorkflowRule {
+  id              String           @id @default(cuid())
+  workflowId      String
+  code            String
+  name            String
+  description     String?
+  condition       Json
+  action          Json
+  priority        Int              @default(0)
+  isActive        Boolean          @default(true)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workflow        Workflow         @relation(fields: [workflowId], references: [id])
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([workflowId])
+  @@index([isActive])
+}
+
+model Task {
+  id              String           @id @default(cuid())
+  code            String
+  title           String
+  description     String?
+  type            TaskType
+  status          TaskStatus       @default(PENDING)
+  priority        Priority
+  assigneeId      String?
+  assigneeType    AssigneeType
+  reporterId      String
+  workflowId      String?
+  executionId     String?
+  stepExecutionId String?
+  dueDate         DateTime?
+  startDate       DateTime?
+  completedAt     DateTime?
+  estimatedHours  Decimal?         @db.Decimal(5, 2)
+  actualHours     Decimal?         @db.Decimal(5, 2)
+  progress        Int              @default(0)
+  tags            String[]         @default([])
+  attachments     String[]         @default([])
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  assignee        User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  reporter        User             @relation("TaskReporter", fields: [reporterId], references: [id])
+  comments        TaskComment[]
+  attachments     TaskAttachment[]
+  dependencies    TaskDependency[] @relation("TaskDependencies")
+  dependents      TaskDependency[] @relation("TaskDependents")
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([priority])
+  @@index([assigneeId])
+  @@index([reporterId])
+  @@index([workflowId])
+  @@index([executionId])
+  @@index([dueDate])
+  @@index([createdAt])
+}
+
+model TaskComment {
+  id              String   @id @default(cuid())
+  taskId          String
+  authorId        String
+  content         String
+  isInternal      Boolean  @default(false)
+  mentions        String[] @default([])
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@index([taskId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model TaskAttachment {
+  id              String   @id @default(cuid())
+  taskId          String
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  uploadedBy      String
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@index([taskId])
+  @@index([uploadedBy])
+}
+
+model TaskDependency {
+  id              String   @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+  type            DependencyType
+  lag             Int      @default(0)
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  task            Task     @relation("TaskDependencies", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn       Task     @relation("TaskDependents", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@unique([taskId, dependsOnTaskId])
+  @@index([taskId])
+  @@index([dependsOnTaskId])
+}
+
+model Form {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  version         Int              @default(1)
+  status          FormStatus       @default(DRAFT)
+  schema          Json
+  uiSchema        Json?
+  permissions     Json?
+  isPublished     Boolean          @default(false)
+  publishedAt     DateTime?
+  publishedBy     String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  submissions     FormSubmission[]
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([isPublished])
+}
+
+model FormSubmission {
+  id              String           @id @default(cuid())
+  formId          String
+  data            Json
+  status          SubmissionStatus @default(SUBMITTED)
+  submittedBy     String
+  submittedAt     DateTime
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  score           Decimal?         @db.Decimal(5, 2)
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  form            Form             @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@index([formId])
+  @@index([status])
+  @@index([submittedBy])
+  @@index([submittedAt])
+}
+
+model Approval {
+  id              String           @id @default(cuid())
+  code            String
+  entityType      ApprovalEntityType
+  entityId        String
+  type            ApprovalType
+  status          ApprovalStatus   @default(PENDING)
+  title           String
+  description     String?
+  priority        Priority
+  requesterId     String
+  currentApproverId String?
+  finalApproverId String?
+  currentLevel    Int              @default(1)
+  totalLevels     Int              @default(1)
+  dueDate         DateTime?
+  startedAt       DateTime
+  completedAt     DateTime?
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectionReason String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  steps           ApprovalStep[]
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([requesterId])
+  @@index([currentApproverId])
+  @@index([dueDate])
+}
+
+model ApprovalStep {
+  id              String           @id @default(cuid())
+  approvalId      String
+  level           Int
+  approverId      String
+  approverType    ApproverType
+  status          ApprovalStepStatus @default(PENDING)
+  action          ApprovalAction?
+  comments        String?
+  delegatedTo     String?
+  delegatedAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  dueDate         DateTime?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  approval        Approval         @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@unique([approvalId, level])
+  @@index([approvalId])
+  @@index([approverId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Process {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            ProcessType
+  status          ProcessStatus    @default(DRAFT)
+  version         Int              @default(1)
+  ownerId         String
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  steps           ProcessStep[]
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([type])
+}
+
+model ProcessStep {
+  id              String           @id @default(cuid())
+  processId       String
+  stepNumber      Int
+  name            String
+  description     String?
+  type            StepType
+  assigneeRole    String?
+  assigneeId      String?
+  config          Json
+  slaHours        Int?
+  isRequired      Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  process         Process          @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@unique([processId, stepNumber])
+  @@index([processId])
+  @@index([type])
+}
+
+model Automation {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            AutomationType
+  trigger         AutomationTrigger
+  triggerConfig   Json
+  actions         Json
+  conditions      Json?
+  isActive        Boolean          @default(true)
+  priority        Int              @default(0)
+  runCount        Int              @default(0)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  successCount    Int              @default(0)
+  failureCount    Int              @default(0)
+  lastError       String?
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+model AutomationExecution {
+  id              String           @id @default(cuid())
+  automationId    String
+  status          ExecutionStatus  @default(PENDING)
+  triggerData     Json
+  outputData      Json?
+  startedAt       DateTime
+  completedAt     DateTime?
+  errorMessage    String?
+  errorStack      String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  automation      Automation       @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@schema("workflow")
+  @@index([automationId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model NotificationRule {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  entityType      String
+  eventType       String
+  channels        NotificationChannel[]
+  template        String
+  conditions      Json?
+  isActive        Boolean          @default(true)
+  priority        Int              @default(0)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("workflow")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entityType])
+  @@index([eventType])
+  @@index([isActive])
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  firstName       String
+  lastName       String
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("workflow")
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum WorkflowCategory {
+  SHIPMENT
+  CUSTOMS
+  WAREHOUSE
+  TRANSPORT
+  FINANCE
+  DOCUMENT
+  NOTIFICATION
+  APPROVAL
+  ONBOARDING
+  COMPLIANCE
+  REPORTING
+  MAINTENANCE
+  OTHER
+}
+
+enum WorkflowTrigger {
+  MANUAL
+  SCHEDULED
+  EVENT
+  WEBHOOK
+  API
+  EMAIL
+  FILE_UPLOAD
+  DATABASE_CHANGE
+  TIMER
+  CONDITION
+}
+
+enum StepType {
+  TASK
+  APPROVAL
+  NOTIFICATION
+  SCRIPT
+  API_CALL
+  DATABASE_OPERATION
+  FILE_OPERATION
+  EMAIL
+  SMS
+  WEBHOOK
+  SUB_WORKFLOW
+  WAIT
+  PARALLEL
+  CONDITION
+  LOOP
+  PARALLEL_GATEWAY
+  EXCLUSIVE_GATEWAY
+  INCLUSIVE_GATEWAY
+  EVENT_GATEWAY
+  TIMER_GATEWAY
+  START_EVENT
+  END_EVENT
+  INTERMEDIATE_EVENT
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  WAITING
+  RETRYING
+}
+
+enum StepExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+  CANCELLED
+  WAITING
+  RETRYING
+  WAITING_APPROVAL
+}
+
+enum ScheduleRunStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+  TIMEOUT
+}
+
+enum FailureAction {
+  STOP
+  CONTINUE
+  RETRY
+  COMPENSATE
+  MANUAL
+}
+
+enum TimeoutAction {
+  FAIL
+  SKIP
+  CONTINUE
+  ESCALATE
+}
+
+enum TaskType {
+  MANUAL
+  AUTOMATED
+  APPROVAL
+  REVIEW
+  DATA_ENTRY
+  DOCUMENT_REVIEW
+  INSPECTION
+  MEETING
+  CALL
+  EMAIL
+  RESEARCH
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+  OVERDUE
+  BLOCKED
+  WAITING_DEPENDENCY
+  WAITING_APPROVAL
+}
+
+enum AssigneeType {
+  USER
+  ROLE
+  GROUP
+  DEPARTMENT
+  QUEUE
+}
+
+enum DependencyType {
+  FINISH_TO_START
+  START_TO_START
+  FINISH_TO_FINISH
+  START_TO_FINISH
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DEPRECATED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  RETURNED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ApprovalEntityType {
+  INVOICE
+  BILL
+  QUOTATION
+  BOOKING
+  SHIPMENT
+  CONTRACT
+  CREDIT_MEMO
+  DEBIT_NOTE
+  REFUND
+  PAYMENT
+  EXPENSE
+  BUDGET
+  CONTRACT
+  DOCUMENT
+  USER_ACCESS
+  SYSTEM_CONFIG
+}
+
+enum ApprovalType {
+  SINGLE
+  SEQUENTIAL
+  PARALLEL
+  MAJORITY
+  UNANIMOUS
+  CONDITIONAL
+}
+
+enum ApprovalStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  ESCALATED
+}
+
+enum ApprovalStepStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  SKIPPED
+  DELEGATED
+  EXPIRED
+}
+
+enum ApproverType {
+  USER
+  ROLE
+  GROUP
+  MANAGER
+  SYSTEM
+}
+
+enum ApprovalAction {
+  APPROVE
+  REJECT
+  DELEGATE
+  REQUEST_INFO
+  ESCALATE
+  ABSTAIN
+}
+
+enum ProcessType {
+  OPERATIONAL
+  SUPPORT
+  MANAGEMENT
+  COMPLIANCE
+  STRATEGIC
+}
+
+enum ProcessStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+  ARCHIVED
+}
+
+enum AutomationType {
+  SCHEDULED
+  EVENT_DRIVEN
+  CONDITIONAL
+  RECURRING
+  ONE_TIME
+  CHAINED
+}
+
+enum AutomationTrigger {
+  SCHEDULE
+  EVENT
+  WEBHOOK
+  API
+  DATABASE_CHANGE
+  FILE_CHANGE
+  EMAIL
+  TIMER
+  CONDITION
+  MANUAL
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DEPRECATED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  RETURNED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}

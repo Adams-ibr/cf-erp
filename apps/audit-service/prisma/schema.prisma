@@ -1,0 +1,775 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["audit", "public"]
+}
+
+model AuditLog {
+  id              String           @id @default(cuid())
+  code            String
+  tenantId        String
+  branchId        String?
+  userId          String?
+  sessionId       String?
+  action          AuditAction
+  resource        String
+  resourceId      String?
+  resourceType    String?
+  oldValues       Json?
+  newValues       Json?
+  changedFields   String[]
+  ipAddress       String?
+  userAgent       String?
+  requestId       String?
+  endpoint        String?
+  method          String?
+  statusCode      Int?
+  responseTime    Int?
+  severity        AuditSeverity    @default(INFO)
+  category        AuditCategory
+  tags            String[]         @default([])
+  metadata        Json?
+  hash            String?
+  previousHash    String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([resource])
+  @@index([resourceId])
+  @@index([action])
+  @@index([severity])
+  @@index([category])
+  @@index([createdAt])
+  @@index([hash])
+}
+
+model SecurityEvent {
+  id              String           @id @default(cuid())
+  code            String
+  type            SecurityEventType
+  severity        SecuritySeverity
+  title           String
+  description     String?
+  source          String
+  sourceIp        String?
+  userId          String?
+  userAgent       String?
+  resource        String?
+  resourceId      String?
+  action          String?
+  result          SecurityResult
+  riskScore       Int              @default(0)
+  tags            String[]         @default([])
+  details         Json?
+  mitigatedAt     DateTime?
+  mitigatedBy     String?
+  mitigation      String?
+  isFalsePositive Boolean          @default(false)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([severity])
+  @@index([sourceIp])
+  @@index([userId])
+  @@index([resource])
+  @@index([result])
+  @@index([createdAt])
+}
+
+model AccessLog {
+  id              String           @id @default(cuid())
+  userId          String?
+  sessionId       String?
+  ipAddress       String
+  userAgent       String?
+  method          String
+  endpoint        String
+  statusCode      Int
+  responseTime    Int
+  requestSize     BigInt?
+  responseSize    BigInt?
+  tenantId        String
+  branchId        String?
+  requestId       String?
+  geoLocation     Json?
+  deviceInfo      Json?
+  isSuspicious    Boolean          @default(false)
+  threatScore     Int              @default(0)
+  createdAt       DateTime         @default(now())
+
+  @@schema("audit")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([ipAddress])
+  @@index([endpoint])
+  @@index([statusCode])
+  @@index([isSuspicious])
+  @@index([createdAt])
+}
+
+model ComplianceCheck {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            ComplianceType
+  framework       String
+  requirement     String
+  description     String?
+  status          ComplianceStatus @default(PENDING)
+  entityType      String
+  entityId        String?
+  evidence        String[]         @default([])
+  findings        String?
+  remediation     String?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  completedBy     String?
+  assignedTo      String?
+  riskLevel       RiskLevel
+  score           Decimal?         @db.Decimal(5, 2)
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([framework])
+  @@index([status])
+  @@index([dueDate])
+  @@index([riskLevel])
+}
+
+model EncryptionKey {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  algorithm       String
+  keySize         Int
+  purpose         KeyPurpose
+  status          KeyStatus        @default(ACTIVE)
+  keyData         String
+  keyHash         String
+  iv              String?
+  salt            String?
+  iterations      Int?
+  version         Int              @default(1)
+  previousKeyId   String?
+  expiresAt       DateTime?
+  rotatedAt       DateTime?
+  rotatedBy       String?
+  rotationReason  String?
+  accessPolicy    Json?
+  usageCount      BigInt           @default(0)
+  lastUsedAt      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([purpose])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model KeyRotationSchedule {
+  id              String           @id @default(cuid())
+  keyId           String
+  intervalDays    Int
+  nextRotationAt  DateTime
+  lastRotationAt  DateTime?
+  isActive        Boolean          @default(true)
+  notifyBeforeDays Int             @default(30)
+  notifyEmails    String[]
+  autoRotate      Boolean          @default(false)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([keyId])
+  @@index([keyId])
+  @@index([nextRotationAt])
+  @@index([isActive])
+}
+
+model Vulnerability {
+  id              String           @id @default(cuid())
+  code            String
+  cveId           String?
+  title           String
+  description     String?
+  severity        VulnerabilitySeverity
+  cvssScore       Decimal?         @db.Decimal(3, 1)
+  cvssVector      String?
+  affectedAsset   String
+  assetType       AssetType
+  assetVersion    String?
+  discoveredAt    DateTime
+  disclosedAt     DateTime?
+  patchedAt       DateTime?
+  status          VulnerabilityStatus @default(OPEN)
+  exploitAvailable Boolean         @default(false)
+  exploitCode     String?
+  remediation     String?
+  workaround      String?
+  references      String[]         @default([])
+  tags            String[]         @default([])
+  riskScore       Int              @default(0)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([cveId])
+  @@index([severity])
+  @@index([status])
+  @@index([affectedAsset])
+  @@index([discoveredAt])
+}
+
+model SecurityIncident {
+  id              String           @id @default(cuid())
+  code            String
+  title           String
+  description     String?
+  type            IncidentType
+  severity        IncidentSeverity
+  status          IncidentStatus   @default(OPEN)
+  source          String
+  detectedAt      DateTime
+  detectedBy      String?
+  assignedTo      String?
+  assignedAt      DateTime?
+  acknowledgedAt  DateTime?
+  acknowledgedBy  String?
+  containedAt     DateTime?
+  containedBy     String?
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  closedAt        DateTime?
+  closedBy        String?
+  rootCause       String?
+  impact          String?
+  impactScope     ImpactScope
+  affectedAssets  String[]
+  affectedUsers   String[]
+  evidence        String[]         @default([])
+  timeline        Json?
+  lessonsLearned  String?
+  preventiveActions String?
+  cost            Decimal?         @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([detectedAt])
+  @@index([assignedTo])
+}
+
+model ForensicEvidence {
+  id              String           @id @default(cuid())
+  incidentId      String
+  type            EvidenceType
+  name            String
+  description     String?
+  fileHash        String
+  fileSize        BigInt
+  mimeType        String
+  fileUrl         String
+  collectedAt     DateTime
+  collectedBy     String
+  chainOfCustody  Json
+  isVerified      Boolean          @default(false)
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@index([tenantId])
+  @@index([incidentId])
+  @@index([type])
+  @@index([fileHash])
+}
+
+model AlertRule {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  entityType      String
+  eventType       String
+  condition       Json
+  severity        AlertSeverity
+  channels        NotificationChannel[]
+  template        String?
+  isActive        Boolean          @default(true)
+  priority        Int              @default(0)
+  throttleMinutes Int              @default(60)
+  maxAlertsPerHour Int             @default(100)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entityType])
+  @@index([eventType])
+  @@index([isActive])
+}
+
+model Alert {
+  id              String           @id @default(cuid())
+  ruleId          String
+  code            String
+  severity        AlertSeverity
+  title           String
+  message         String
+  source          String
+  sourceIp        String?
+  userId          String?
+  resource        String?
+  resourceId      String?
+  status          AlertStatus      @default(OPEN)
+  acknowledgedAt  DateTime?
+  acknowledgedBy  String?
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  closedAt        DateTime?
+  closedBy        String?
+  escalatedAt     DateTime?
+  escalatedTo     String?
+  notifications   Json?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([ruleId])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EncryptionPolicy {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  algorithm       String
+  keySize         Int
+  mode            String
+  padding         String?
+  keyRotationDays Int
+  allowedAlgorithms String[]       @default([])
+  forbiddenAlgorithms String[]     @default([])
+  minKeySize      Int
+  maxKeyAgeDays   Int
+  requireKeyEscrow Boolean         @default(false)
+  requireMFA      Boolean          @default(false)
+  allowedPurposes KeyPurpose[]     @default([])
+  tenantId        String
+  branchId        String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("audit")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  MFA_ENABLE
+  MFA_DISABLE
+  MFA_VERIFY
+  EXPORT
+  IMPORT
+  APPROVE
+  REJECT
+  ASSIGN
+  UNASSIGN
+  STATUS_CHANGE
+  PERMISSION_CHANGE
+  ROLE_CHANGE
+  SETTINGS_CHANGE
+  FILE_UPLOAD
+  FILE_DOWNLOAD
+  FILE_DELETE
+  PRINT
+  EMAIL_SENT
+  SMS_SENT
+  API_CALL
+  WEBHOOK_RECEIVED
+  SCHEDULED_JOB
+  MANUAL
+}
+
+enum AuditSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum AuditCategory {
+  AUTHENTICATION
+  AUTHORIZATION
+  DATA_ACCESS
+  DATA_MODIFICATION
+  SYSTEM_CONFIG
+  SECURITY
+  COMPLIANCE
+  ADMINISTRATION
+  FINANCIAL
+  OPERATIONAL
+  USER_MANAGEMENT
+  ROLE_MANAGEMENT
+  AUDIT_TRAIL
+  SECURITY_EVENT
+  DATA_EXPORT
+  DATA_IMPORT
+  FILE_OPERATION
+  NETWORK
+  DATABASE
+  API
+  UI
+}
+
+enum SecurityEventType {
+  LOGIN_ATTEMPT
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  BRUTE_FORCE
+  PASSWORD_SPRAY
+  CREDENTIAL_STUFFING
+  ACCOUNT_TAKEOVER
+  PRIVILEGE_ESCALATION
+  UNAUTHORIZED_ACCESS
+  DATA_EXFILTRATION
+  DATA_BREACH
+  MALWARE_DETECTED
+  RANSOMWARE
+  PHISHING
+  SOCIAL_ENGINEERING
+  INSIDER_THREAT
+  PRIVILEGE_ABUSE
+  DATA_LEAK
+  CONFIGURATION_CHANGE
+  PERMISSION_CHANGE
+  ROLE_CHANGE
+  AUDIT_LOG_TAMPERING
+  ENCRYPTION_KEY_COMPROMISE
+  CERTIFICATE_EXPIRY
+  CERTIFICATE_REVOKED
+  VULNERABILITY_EXPLOITED
+  ZERO_DAY
+  DDoS
+  PORT_SCAN
+  SUSPICIOUS_ACTIVITY
+  ANOMALY_DETECTED
+  POLICY_VIOLATION
+  COMPLIANCE_VIOLATION
+  DATA_LOSS
+  UNAUTHORIZED_EXPORT
+  UNAUTHORIZED_IMPORT
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  EMERGENCY
+}
+
+enum SecurityResult {
+  BLOCKED
+  ALLOWED
+  FLAGGED
+  QUARANTINED
+  ALERTED
+  LOGGED_ONLY
+  FAILED
+  PARTIAL
+}
+
+enum ComplianceType {
+  GDPR
+  HIPAA
+  SOX
+  PCI_DSS
+  ISO_27001
+  ISO_9001
+  ISO_14001
+  NIST
+  CIS
+  CUSTOM
+  INDUSTRY_SPECIFIC
+  REGIONAL
+  INTERNATIONAL
+}
+
+enum ComplianceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLIANT
+  NON_COMPLIANT
+  PARTIAL
+  EXEMPT
+  WAIVED
+  EXPIRED
+  FAILED
+  NOT_APPLICABLE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum KeyPurpose {
+  ENCRYPTION
+  DECRYPTION
+  SIGNING
+  VERIFICATION
+  KEY_EXCHANGE
+  CERTIFICATE
+  TLS
+  JWT
+  API_KEY
+  DATABASE
+  FILE_STORAGE
+  BACKUP
+  MESSAGING
+  OTHER
+}
+
+enum KeyStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  REVOKED
+  COMPROMISED
+  PENDING_ROTATION
+  ROTATED
+  ARCHIVED
+}
+
+enum VulnerabilitySeverity {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AssetType {
+  SERVER
+  DATABASE
+  NETWORK_DEVICE
+  APPLICATION
+  API
+  CONTAINER
+  VM
+  IOT_DEVICE
+  MOBILE_DEVICE
+  WORKSTATION
+  LAPTOP
+  SERVERLESS
+  CLOUD_RESOURCE
+  NETWORK
+  STORAGE
+  DNS
+  CERTIFICATE
+  KEY
+  SECRET
+  CONFIGURATION
+  CODE_REPOSITORY
+  CI_CD_PIPELINE
+  THIRD_PARTY_SERVICE
+}
+
+enum VulnerabilityStatus {
+  OPEN
+  IN_PROGRESS
+  PATCHED
+  MITIGATED
+  ACCEPTED_RISK
+  FALSE_POSITIVE
+  WONT_FIX
+  DEFERRED
+  CLOSED
+  REOPENED
+}
+
+enum IncidentType {
+  SECURITY_BREACH
+  DATA_BREACH
+  UNAUTHORIZED_ACCESS
+  MALWARE_INFECTION
+  RANSOMWARE
+  PHISHING
+  INSIDER_THREAT
+  DDoS
+  SYSTEM_COMPROMISE
+  DATA_LEAK
+  CREDENTIAL_THEFT
+  ACCOUNT_TAKEOVER
+  PRIVILEGE_ESCALATION
+  CONFIGURATION_DRIFT
+  COMPLIANCE_VIOLATION
+  SERVICE_OUTAGE
+  PERFORMANCE_DEGRADATION
+  DATA_LOSS
+  HARDWARE_FAILURE
+  NETWORK_OUTAGE
+  APPLICATION_ERROR
+  THIRD_PARTY_INCIDENT
+  SUPPLY_CHAIN_ATTACK
+  ZERO_DAY_EXPLOIT
+  SOCIAL_ENGINEERING
+  PHYSICAL_SECURITY
+  OTHER
+}
+
+enum IncidentSeverity {
+  SEV1
+  SEV2
+  SEV3
+  SEV4
+  SEV5
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  INVESTIGATING
+  CONTAINING
+  ERADICATING
+  RECOVERING
+  RESOLVED
+  CLOSED
+  POST_MORTEM
+  ESCALATED
+}
+
+enum ImpactScope {
+  SINGLE_USER
+  SINGLE_SYSTEM
+  MULTIPLE_SYSTEMS
+  DEPARTMENT
+  ORGANIZATION
+  CUSTOMER_FACING
+  PARTNER_FACING
+  REGULATORY
+  PUBLIC
+  GLOBAL
+}
+
+enum EvidenceType {
+  LOG_FILE
+  SCREENSHOT
+  MEMORY_DUMP
+  DISK_IMAGE
+  NETWORK_CAPTURE
+  DATABASE_EXPORT
+  CONFIGURATION_FILE
+  SOURCE_CODE
+  EMAIL
+  CHAT_LOG
+  AUDIO_RECORDING
+  VIDEO_RECORDING
+  PHYSICAL_EVIDENCE
+  DIGITAL_CERTIFICATE
+  PRIVATE_KEY
+  PUBLIC_KEY
+  HASH
+  SIGNATURE
+  TIMESTAMP
+  BLOCKCHAIN_RECORD
+  METADATA
+  OTHER
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+  SUPPRESSED
+  ESCALATED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}

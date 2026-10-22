@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth", "public"]
+}
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  logo        String?
+  domain      String?  @unique
+  timezone    String   @default("UTC")
+  locale      String   @default("en")
+  dateFormat  String   @default("YYYY-MM-DD")
+  currency    String   @default("USD")
+  settings    Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  isDeleted   Boolean  @default(false)
+
+  branches    Branch[]
+  users       User[]
+  roles       Role[]
+  permissions Permission[]
+
+  @@schema("auth")
+  @@index([code])
+  @@index([domain])
+}
+
+model Branch {
+  id          String   @id @default(cuid())
+  name        String
+  code        String
+  address     Json?
+  contact     Json?
+  managerId   String?
+  settings    Json?
+  isActive    Boolean  @default(true)
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  isDeleted   Boolean  @default(false)
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  users       User[]
+
+  @@schema("auth")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([managerId])
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String
+  firstName       String
+  lastName        String
+  passwordHash    String
+  phone           String?
+  mobile          String?
+  avatar          String?
+  isActive        Boolean  @default(true)
+  isEmailVerified Boolean  @default(false)
+  mfaEnabled      Boolean  @default(false)
+  mfaSecret       String?
+  mfaBackupCodes  String[] @default([])
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  branch          Branch?      @relation(fields: [branchId], references: [id])
+  roles           UserRole[]
+  sessions        Session[]
+  refreshTokens   RefreshToken[]
+  passwordResets  PasswordResetToken[]
+  loginAttempts   LoginAttempt[]
+
+  @@schema("auth")
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([email])
+  @@index([isActive])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  isDeleted   Boolean  @default(false)
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@schema("auth")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isSystem])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  resource    String
+  action      String
+  isSystem    Boolean  @default(false)
+  tenantId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles       RolePermission[]
+
+  @@schema("auth")
+  @@index([resource, action])
+  @@index([tenantId])
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  assignedBy String?
+  assignedAt DateTime @default(now())
+  expiresAt DateTime?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@schema("auth")
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@schema("auth")
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("auth")
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("auth")
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("auth")
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  ipAddress String
+  userAgent String
+  success   Boolean
+  failureReason String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("auth")
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  keyHash     String   @unique
+  keyPrefix   String
+  permissions String[]
+  allowedIps  String[] @default([])
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  userId      String
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  isDeleted   Boolean  @default(false)
+
+  @@schema("auth")
+  @@index([userId])
+  @@index([tenantId])
+  @@index([keyPrefix])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  branchId    String?
+  userId      String?
+  action      String
+  resource    String
+  resourceId  String?
+  oldValues   Json?
+  newValues   Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  sessionId   String?
+  createdAt   DateTime @default(now())
+
+  @@schema("auth")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  email     String
+  roleId    String
+  tenantId  String
+  branchId  String?
+  token     String   @unique
+  invitedBy String
+  acceptedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@schema("auth")
+  @@index([tenantId])
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+}

@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": false,
+    "paths": {
+      "@cf-erp/shared": ["./libs/shared/src/index.ts"],
+      "@cf-erp/shared/*": ["./libs/shared/src/*"],
+      "@cf-erp/config": ["./libs/config/src/index.ts"],
+      "@cf-erp/database": ["./libs/database/src/index.ts"],
+      "@cf-erp/messaging": ["./libs/messaging/src/index.ts"],
+      "@cf-erp/auth": ["./libs/auth/src/index.ts"],
+      "@cf-erp/common": ["./libs/common/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", "**/*.spec.ts"]
+}

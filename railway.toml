@@ -1,0 +1,129 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "node dist/main.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "api-gateway"
+source = "apps/api-gateway"
+
+[[services]]
+name = "auth-service"
+source = "apps/auth-service"
+
+[[services]]
+name = "customer-service"
+source = "apps/customer-service"
+
+[[services]]
+name = "quotation-service"
+source = "apps/quotation-service"
+
+[[services]]
+name = "job-service"
+source = "apps/job-service"
+
+[[services]]
+name = "booking-service"
+source = "apps/booking-service"
+
+[[services]]
+name = "customs-service"
+source = "apps/customs-service"
+
+[[services]]
+name = "document-service"
+source = "apps/document-service"
+
+[[services]]
+name = "tracking-service"
+source = "apps/tracking-service"
+
+[[services]]
+name = "warehouse-service"
+source = "apps/warehouse-service"
+
+[[services]]
+name = "transport-service"
+source = "apps/transport-service"
+
+[[services]]
+name = "container-service"
+source = "apps/container-service"
+
+[[services]]
+name = "demurrage-service"
+source = "apps/demurrage-service"
+
+[[services]]
+name = "finance-service"
+source = "apps/finance-service"
+
+[[services]]
+name = "invoicing-service"
+source = "apps/invoicing-service"
+
+[[services]]
+name = "duty-service"
+source = "apps/duty-service"
+
+[[services]]
+name = "ar-ap-service"
+source = "apps/ar-ap-service"
+
+[[services]]
+name = "agent-service"
+source = "apps/agent-service"
+
+[[services]]
+name = "portal-service"
+source = "apps/portal-service"
+
+[[services]]
+name = "workflow-service"
+source = "apps/workflow-service"
+
+[[services]]
+name = "hr-service"
+source = "apps/hr-service"
+
+[[services]]
+name = "reports-service"
+source = "apps/reports-service"
+
+[[services]]
+name = "audit-service"
+source = "apps/audit-service"
+
+[[services]]
+name = "branch-service"
+source = "apps/branch-service"
+
+[[services]]
+name = "config-service"
+source = "apps/config-service"
+
+[[services]]
+name = "currency-service"
+source = "apps/currency-service"
+
+[[services]]
+name = "integration-service"
+source = "apps/integration-service"
+
+[[services]]
+name = "notification-service"
+source = "apps/notification-service"
+
+[[services]]
+name = "admin-service"
+source = "apps/admin-service"
+
+[[services]]
+name = "dashboard-service"
+source = "apps/dashboard-service"

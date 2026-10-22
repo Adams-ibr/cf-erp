@@ -1,0 +1,666 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["duty", "public"]
+}
+
+model CustomsDuty {
+  id              String           @id @default(cuid())
+  code            String
+  entryId         String?
+  shipmentId      String?
+  containerId     String?
+  containerNumber String
+  tariffCodeId    String?
+  type            DutyType
+  status          DutyStatus       @default(CALCULATING)
+  country         String
+  portOfEntry     String
+  originCountry   String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  value           Decimal          @db.Decimal(18, 2)
+  weight          Decimal?         @db.Decimal(18, 4)
+  quantity        Decimal?         @db.Decimal(18, 4)
+  unit            String?
+  dutyRate        Decimal          @db.Decimal(5, 4)
+  dutyAmount      Decimal          @db.Decimal(18, 2)
+  additionalDuties Json?
+  totalDuty       Decimal          @db.Decimal(18, 2)
+  preferentialDuty Decimal?        @db.Decimal(18, 2)
+  tradeAgreementId String?
+  isPreferential  Boolean          @default(false)
+  status          DutyStatus       @default(CALCULATING)
+  calculatedAt    DateTime?
+  calculatedBy    String?
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  paidAt          DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  invoiceId       String?
+  receiptNumber   String?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entryId])
+  @@index([shipmentId])
+  @@index([containerId])
+  @@index([containerNumber])
+  @@index([type])
+  @@index([status])
+  @@index([tariffCodeId])
+  @@index([tradeAgreementId])
+}
+
+model Tax {
+  id              String           @id @default(cuid())
+  code            String
+  entryId         String?
+  shipmentId      String?
+  containerId     String?
+  type            TaxType
+  name            String
+  status          TaxStatus        @default(CALCULATING)
+  country         String
+  jurisdiction    String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  taxableAmount   Decimal          @db.Decimal(18, 2)
+  taxRate         Decimal          @db.Decimal(5, 4)
+  taxAmount       Decimal          @db.Decimal(18, 2)
+  isRecoverable   Boolean          @default(false)
+  recoverableAmount Decimal?       @db.Decimal(18, 2)
+  taxPointDate    DateTime
+  dueDate         DateTime?
+  paidAt          DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  returnId        String?
+  filingDate      DateTime?
+  status          TaxStatus        @default(CALCULATING)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entryId])
+  @@index([shipmentId])
+  @@index([containerId])
+  @@index([type])
+  @@index([status])
+}
+
+model Disbursement {
+  id              String           @id @default(cuid())
+  code            String
+  shipmentId      String?
+  jobId           String?
+  bookingId       String?
+  type            DisbursementType
+  category        DisbursementCategory
+  vendorId        String?
+  vendorName      String
+  description     String
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  amount          Decimal          @db.Decimal(18, 2)
+  taxAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  status          DisbursementStatus @default(PENDING)
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  paidBy          String?
+  paidAt          DateTime?
+  paymentMethod   PaymentMethod?
+  paymentRef      String?
+  invoiceNumber   String?
+  invoiceDate     DateTime?
+  receiptNumber   String?
+  receiptDate     DateTime?
+  dueDate         DateTime?
+  paidDate        DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(18, 2)
+  balanceAmount   Decimal          @db.Decimal(18, 2)
+  GLAccountId     String?
+  costCenterId    String?
+  profitCenterId  String?
+  projectId       String?
+  isRecurring     Boolean          @default(false)
+  recurrenceRule  String?
+  nextDueDate     DateTime?
+  attachments     String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([shipmentId])
+  @@index([jobId])
+  @@index([bookingId])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+  @@index([vendorId])
+  @@index([dueDate])
+  @@index([paidDate])
+}
+
+model TariffCode {
+  id              String           @id @default(cuid())
+  code            String
+  description     String
+  chapter         String
+  heading         String
+  subheading      String?
+  unit            String
+  dutyRate        Decimal          @db.Decimal(5, 4)
+  taxRate         Decimal?         @db.Decimal(5, 4)
+  unitOfMeasure   String
+  isActive        Boolean          @default(true)
+  validFrom       DateTime
+  validUntil      DateTime?
+  country         String
+  parentId        String?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  children        TariffCode[]     @relation("TariffHierarchy", fields: [parentId], references: [id])
+  parent          TariffCode?      @relation("TariffHierarchy", fields: [parentId], references: [id])
+  tradeAgreements TradeAgreementTariff[]
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([chapter])
+  @@index([heading])
+  @@index([subheading])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model TradeAgreement {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            TradeAgreementType
+  countries       String[]
+  description     String?
+  isActive        Boolean          @default(true)
+  validFrom       DateTime
+  validUntil      DateTime?
+  preferentialDuty Decimal?        @db.Decimal(5, 4)
+  rulesOfOrigin   Json?
+  certificateRequired Boolean      @default(true)
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  tariffs         TradeAgreementTariff[]
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model TradeAgreementTariff {
+  id              String           @id @default(cuid())
+  tradeAgreementId String
+  tariffCodeId    String
+  preferentialRate Decimal         @db.Decimal(5, 4)
+  rulesOfOrigin   Json?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tradeAgreement  TradeAgreement   @relation(fields: [tradeAgreementId], references: [id], onDelete: Cascade)
+  tariffCode      TariffCode       @relation(fields: [tariffCodeId], references: [id], onDelete: Cascade)
+
+  @@schema("duty")
+  @@unique([tradeAgreementId, tariffCodeId])
+  @@index([tradeAgreementId])
+  @@index([tariffCodeId])
+}
+
+model DutyExemption {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            ExemptionType
+  description     String?
+  conditions      Json
+  applicableDuties DutyType[]
+  applicableTaxes TaxType[]
+  applicableCountries String[]
+  applicableTariffCodes String[]
+  validFrom       DateTime
+  validUntil      DateTime?
+  isActive        Boolean          @default(true)
+  requiresCertificate Boolean      @default(false)
+  certificateType String?
+  maxValue        Decimal?         @db.Decimal(18, 2)
+  maxQuantity     Decimal?         @db.Decimal(18, 4)
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model DutyRefund {
+  id              String           @id @default(cuid())
+  code            String
+  type            RefundType
+  dutyId          String?
+  taxId           String?
+  disbursementId  String?
+  status          RefundStatus     @default(REQUESTED)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(18, 2)
+  approvedAmount  Decimal?         @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  paidAt          DateTime?
+  paidAmount      Decimal?         @db.Decimal(18, 2)
+  paidBy          String?
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([dutyId])
+  @@index([createdBy])
+}
+
+model CustomsValuation {
+  id              String           @id @default(cuid())
+  code            String
+  entryId         String?
+  shipmentId      String?
+  containerId     String?
+  method          ValuationMethod
+  transactionValue Decimal?        @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  exchangeRate    Decimal          @default(1) @db.Decimal(18, 6)
+  adjustments     Json?
+  finalValue      Decimal          @db.Decimal(18, 2)
+  status          ValuationStatus  @default(DRAFT)
+  determinedBy    String?
+  determinedAt    DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entryId])
+  @@index([shipmentId])
+  @@index([containerId])
+  @@index([method])
+  @@index([status])
+}
+
+model TariffClassification {
+  id              String           @id @default(cuid())
+  code            String
+  description     String
+  tariffCodeId    String?
+  productId       String?
+  productName     String
+  productDescription String?
+  classification  String
+  confidence      Decimal          @db.Decimal(5, 2)
+  method          ClassificationMethod
+  classifiedBy    String
+  classifiedAt    DateTime
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  isBinding       Boolean          @default(false)
+  rulingNumber    String?
+  rulingDate      DateTime?
+  validUntil      DateTime?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tariffCodeId])
+  @@index([productId])
+  @@index([status])
+  @@index([classifiedAt])
+}
+
+model DutyReport {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            ReportType
+  periodStart     DateTime
+  periodEnd       DateTime
+  filters         Json?
+  data            Json
+  status          ReportStatus     @default(GENERATING)
+  generatedAt     DateTime?
+  generatedBy     String?
+  downloadedAt    DateTime?
+  downloadedBy    String?
+  fileUrl         String?
+  fileSize        BigInt?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("duty")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([periodStart, periodEnd])
+  @@index([status])
+}
+
+enum DutyType {
+  IMPORT
+  EXPORT
+  TRANSIT
+  ANTI_DUMPING
+  COUNTERVAILING
+  SAFEGUARD
+  ADDITIONAL
+  PREFERENTIAL
+}
+
+enum DutyStatus {
+  CALCULATING
+  CALCULATED
+  VERIFIED
+  PAID
+  PARTIAL_PAID
+  OVERDUE
+  DISPUTED
+  WAIVED
+  EXEMPT
+  CANCELLED
+  EXPIRED
+}
+
+enum TaxType {
+  VAT
+  GST
+  SALES_TAX
+  EXCISE
+  SERVICE_TAX
+  CUSTOMS_PROCESSING
+  PORT_CHARGES
+  TERMINAL_HANDLING
+  DOCUMENTATION
+  INSPECTION
+  QUARANTINE
+  OTHER
+}
+
+enum TaxStatus {
+  CALCULATING
+  CALCULATED
+  DUE
+  PAID
+  PARTIAL_PAID
+  OVERDUE
+  REFUNDED
+  EXEMPT
+  CANCELLED
+  FILED
+}
+
+enum DisbursementType {
+  PORT_CHARGES
+  TERMINAL_HANDLING
+  WHARFAGE
+  STEVEDORING
+  DOCUMENTATION
+  CUSTOMS_BROKERAGE
+  AGENCY_FEES
+  INSURANCE
+  FREIGHT
+  STORAGE
+  DEMURRAGE
+  DETENTION
+  REPOSITIONING
+  EQUIPMENT_HIRE
+  FUEL
+  BUNKERING
+  PROVISIONS
+  REPAIRS
+  CLEANING
+  FUMIGATION
+  INSPECTION
+  SECURITY
+  PILOTAGE
+  TOWAGE
+  MOORING
+  ANCHORAGE
+  LIGHT_DUES
+  HARBOR_DUES
+  ENVIRONMENTAL
+  CUSTOMS_DUTY
+  TAXES
+  PENALTIES
+  INTEREST
+  LEGAL_FEES
+  CONSULTING
+  OTHER
+}
+
+enum DisbursementCategory {
+  PORT
+  TERMINAL
+  CUSTOMS
+  DOCUMENTATION
+  INSURANCE
+  FREIGHT
+  STORAGE
+  EQUIPMENT
+  FUEL
+  REPAIRS
+  GOVERNMENT
+  LEGAL
+  CONSULTING
+  OTHER
+}
+
+enum DisbursementStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+  PARTIAL_PAID
+  OVERDUE
+  CANCELLED
+  DISPUTED
+  VOIDED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CHECK
+  CASH
+  LETTER_OF_CREDIT
+  BANK_GUARANTEE
+  ONLINE
+  CRYPTO
+  OTHER
+}
+
+enum ExemptionType {
+  DIPLOMATIC
+  HUMANITARIAN
+  MILITARY
+  GOVERNMENT
+  RE_EXPORT
+  TEMPORARY_IMPORT
+  REPAIR
+  EXHIBITION
+  SAMPLES
+  REPAIR_RETURN
+  PROCESSING
+  BOUND
+  STRATEGIC
+  CULTURAL
+  EDUCATIONAL
+  SCIENTIFIC
+  MEDICAL
+  DISASTER_RELIEF
+  OTHER
+}
+
+enum RefundType {
+  OVERPAYMENT
+  EXEMPTION
+  DRAWBACK
+  RE_EXPORT
+  ERROR
+  COURT_ORDER
+  POLICY_CHANGE
+  OTHER
+}
+
+enum RefundStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PROCESSING
+  PAID
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ValuationMethod {
+  TRANSACTION_VALUE
+  TRANSACTION_VALUE_IDENTICAL
+  TRANSACTION_VALUE_SIMILAR
+  DEDUCTIVE_VALUE
+  COMPUTED_VALUE
+  FALLBACK
+}
+
+enum ClassificationMethod {
+  RULING
+  SELF_CLASSIFICATION
+  AI_ASSISTED
+  EXPERT_REVIEW
+  LAB_ANALYSIS
+}
+
+enum ReportType {
+  DUTY_SUMMARY
+  TAX_SUMMARY
+  DISBURSEMENT_SUMMARY
+  EXEMPTION_UTILIZATION
+  REFUND_STATUS
+  TARIFF_UTILIZATION
+  COMPLIANCE
+  AUDIT_TRAIL
+  COST_ANALYSIS
+  BUDGET_VARIANCE
+}

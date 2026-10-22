@@ -1,0 +1,18 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "postgresql", "redis"]
+
+[phases.install]
+cmds = ["npm ci --workspaces=false"]
+
+[phases.build]
+cmds = ["npm run build --filter=@cf-erp/$RAILWAY_SERVICE_NAME"]
+
+[phases.deploy]
+cmd = "node dist/main.js"
+
+[environment]
+NODE_ENV = "production"
+NPM_CONFIG_PRODUCTION = "false"
+
+[start]
+command = "node dist/main.js"

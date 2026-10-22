@@ -1,0 +1,670 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["transport", "public"]
+}
+
+model Vehicle {
+  id              String           @id @default(cuid())
+  code            String
+  registrationNumber String        @unique
+  vin             String?          @unique
+  type            VehicleType
+  status          VehicleStatus    @default(AVAILABLE)
+  make            String
+  model           String
+  year            Int
+  color           String?
+  capacity        VehicleCapacity?
+  specifications  Json?
+  registrationExpiry DateTime?
+  insuranceExpiry DateTime?
+  inspectionExpiry DateTime?
+  gpsDeviceId     String?
+  fuelType        FuelType         @default(DIESEL)
+  fuelCapacity    Decimal?         @db.Decimal(10, 2)
+  avgFuelConsumption Decimal?      @db.Decimal(5, 2)
+  totalMileage    Decimal          @default(0) @db.Decimal(12, 2)
+  lastServiceDate DateTime?
+  nextServiceDate DateTime?
+  lastServiceMileage Decimal?       @db.Decimal(12, 2)
+  nextServiceMileage Decimal?       @db.Decimal(12, 2)
+  assignedDriverId String?
+  homeBaseId      String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  capacity        VehicleCapacity? @relation(fields: [id], references: [vehicleId])
+  driver          Driver?          @relation("VehicleDriver", fields: [assignedDriverId], references: [id])
+  homeBase        Branch?          @relation(fields: [homeBaseId], references: [id])
+  routes          Route[]
+  deliveries      Delivery[]
+  maintenanceRecords MaintenanceRecord[]
+  fuelLogs        FuelLog[]
+  trips           Trip[]
+
+  @@schema("transport")
+  @@unique([tenantId, code])
+  @@unique([tenantId, registrationNumber])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([status])
+  @@index([assignedDriverId])
+  @@index([homeBaseId])
+  @@index([registrationExpiry])
+  @@index([inspectionExpiry])
+}
+
+model VehicleCapacity {
+  id              String   @id @default(cuid())
+  vehicleId       String   @unique
+  maxWeight       Decimal  @db.Decimal(10, 2)
+  maxVolume       Decimal  @db.Decimal(10, 2)
+  maxPallets      Int?
+  dimensions      Json?
+  axleCount       Int?
+  axleWeights     Decimal[] @default([]) @db.Decimal(10, 2)
+
+  vehicle         Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@schema("transport")
+  @@index([vehicleId])
+}
+
+model Driver {
+  id              String           @id @default(cuid())
+  code            String
+  employeeId      String?          @unique
+  firstName       String
+  lastName        String
+  licenseNumber   String           @unique
+  licenseClass    String
+  licenseExpiry   DateTime
+  licenseCountry  String           @default("US")
+  endorsements    String[]         @default([])
+  restrictions    String?
+  medicalExpiry   DateTime?
+  phone           String?
+  email           String?
+  address         Json?
+  emergencyContact Json?
+  status          DriverStatus     @default(ACTIVE)
+  hireDate        DateTime
+  terminationDate DateTime?
+  rating          Decimal?         @db.Decimal(3, 2)
+  totalTrips      Int              @default(0)
+  totalMileage    Decimal          @default(0) @db.Decimal(12, 2)
+  totalHours      Decimal          @default(0) @db.Decimal(10, 2)
+  violations      Int              @default(0)
+  accidents       Int              @default(0)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  vehicle         Vehicle?         @relation("VehicleDriver", fields: [id], references: [assignedDriverId])
+  routes          Route[]
+  deliveries      Delivery[]
+  trips           Trip[]
+  logs            DriverLog[]
+
+  @@schema("transport")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([licenseNumber])
+  @@index([status])
+  @@index([licenseExpiry])
+  @@index([medicalExpiry])
+}
+
+model Route {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            RouteType
+  status          RouteStatus      @default(ACTIVE)
+  origin          String
+  destination     String
+  waypoints       Json?
+  distance        Decimal          @db.Decimal(10, 2)
+  estimatedDuration Int            @default(0)
+  estimatedFuel   Decimal?         @db.Decimal(10, 2)
+  tollCosts       Decimal?         @db.Decimal(10, 2)
+  vehicleType     VehicleType?
+  maxWeight       Decimal?         @db.Decimal(10, 2)
+  maxVolume       Decimal?         @db.Decimal(10, 2)
+  restrictions    Json?
+  schedule        RouteSchedule?
+  isRecurring     Boolean          @default(false)
+  recurrenceRule  String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  vehicle         Vehicle?         @relation(fields: [id], references: [id])
+  driver          Driver?          @relation(fields: [id], references: [id])
+  deliveries      Delivery[]
+  trips           Trip[]
+
+  @@schema("transport")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([status])
+  @@index([origin, destination])
+}
+
+model RouteSchedule {
+  id              String   @id @default(cuid())
+  routeId         String   @unique
+  monday          Boolean  @default(false)
+  tuesday         Boolean  @default(false)
+  wednesday       Boolean  @default(false)
+  thursday        Boolean  @default(false)
+  friday          Boolean  @default(false)
+  saturday        Boolean  @default(false)
+  sunday          Boolean  @default(false)
+  startTime       String?
+  endTime         String?
+  timezone        String   @default("UTC")
+  validFrom       DateTime?
+  validUntil      DateTime?
+  exceptions      Json?
+
+  route           Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@schema("transport")
+  @@index([routeId])
+}
+
+model Delivery {
+  id              String           @id @default(cuid())
+  code            String
+  reference       String?
+  type            DeliveryType
+  status          DeliveryStatus   @default(PENDING)
+  priority        DeliveryPriority @default(NORMAL)
+  shipmentId      String?
+  orderId         String?
+  vehicleId       String?
+  driverId        String?
+  routeId         String?
+  origin          String
+  destination     String
+  originContact   Json?
+  destinationContact Json?
+  pickupWindowStart DateTime?
+  pickupWindowEnd   DateTime?
+  deliveryWindowStart DateTime?
+  deliveryWindowEnd   DateTime?
+  actualPickupAt    DateTime?
+  actualDeliveryAt  DateTime?
+  estimatedDistance Decimal?        @db.Decimal(10, 2)
+  actualDistance    Decimal?        @db.Decimal(10, 2)
+  estimatedDuration Int?
+  actualDuration    Int?
+  estimatedFuel     Decimal?        @db.Decimal(10, 2)
+  actualFuel        Decimal?        @db.Decimal(10, 2)
+  weight            Decimal?        @db.Decimal(10, 2)
+  volume            Decimal?        @db.Decimal(10, 2)
+  pieces            Int?
+  requiresSignature Boolean         @default(false)
+  requiresPhoto     Boolean         @default(false)
+  temperatureControl Boolean        @default(false)
+  minTemperature    Decimal?        @db.Decimal(5, 2)
+  maxTemperature    Decimal?        @db.Decimal(5, 2)
+  specialInstructions String?
+  notes             String?
+  tenantId          String
+  branchId          String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean          @default(false)
+  createdBy         String?
+  updatedBy         String?
+
+  vehicle         Vehicle?         @relation(fields: [vehicleId], references: [id])
+  driver          Driver?          @relation(fields: [driverId], references: [id])
+  route           Route?           @relation(fields: [routeId], references: [id])
+  proofOfDelivery ProofOfDelivery?
+  podEvents       ProofOfDeliveryEvent[]
+
+  @@schema("transport")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([routeId])
+  @@index([status])
+  @@index([type])
+  @@index([priority])
+  @@index([shipmentId])
+  @@index([orderId])
+}
+
+model ProofOfDelivery {
+  id              String           @id @default(cuid())
+  deliveryId      String           @unique
+  status          PODStatus        @default(PENDING)
+  deliveredAt     DateTime?
+  deliveredTo     String?
+  signature       String?
+  signatureName   String?
+  photoUrls       String[]         @default([])
+  notes           String?
+  gpsLocation     Json?
+  deviceInfo      Json?
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  delivery        Delivery         @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  events          ProofOfDeliveryEvent[]
+
+  @@schema("transport")
+  @@index([deliveryId])
+  @@index([tenantId])
+  @@index([status])
+}
+
+model ProofOfDeliveryEvent {
+  id              String           @id @default(cuid())
+  proofOfDeliveryId String
+  type            PODEventType
+  timestamp       DateTime
+  location        String?
+  gpsCoordinates  Json?
+  data            Json?
+  deviceInfo      Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+
+  proofOfDelivery ProofOfDelivery  @relation(fields: [proofOfDeliveryId], references: [id], onDelete: Cascade)
+
+  @@schema("transport")
+  @@index([proofOfDeliveryId])
+  @@index([tenantId])
+  @@index([type])
+  @@index([timestamp])
+}
+
+model MaintenanceRecord {
+  id              String           @id @default(cuid())
+  vehicleId       String
+  type            MaintenanceType
+  status          MaintenanceStatus @default(SCHEDULED)
+  title           String
+  description     String?
+  scheduledAt     DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  mileageAtService Decimal?        @db.Decimal(12, 2)
+  cost            Decimal?         @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  vendor          String?
+  vendorContact   String?
+  partsReplaced   Json?
+  laborHours      Decimal?         @db.Decimal(5, 2)
+  nextServiceDue  DateTime?
+  nextMileageDue  Decimal?         @db.Decimal(12, 2)
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  vehicle         Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@schema("transport")
+  @@index([vehicleId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([completedAt])
+}
+
+model FuelLog {
+  id              String       @id @default(cuid())
+  vehicleId       String
+  driverId        String?
+  date            DateTime
+  odometerReading Decimal      @db.Decimal(12, 2)
+  fuelType        FuelType
+  quantity        Decimal      @db.Decimal(10, 2)
+  unitPrice       Decimal      @db.Decimal(10, 4)
+  totalCost       Decimal      @db.Decimal(10, 2)
+  currency        String       @default("USD")
+  location        String?
+  stationName     String?
+  receiptNumber   String?
+  paymentMethod   String?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  vehicle         Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver          Driver?      @relation(fields: [driverId], references: [id])
+
+  @@schema("transport")
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([date])
+}
+
+model Trip {
+  id              String           @id @default(cuid())
+  code            String
+  vehicleId       String
+  driverId        String?
+  routeId         String?
+  status          TripStatus       @default(PLANNED)
+  startLocation   String
+  endLocation     String
+  startTime       DateTime?
+  endTime         DateTime?
+  plannedStartTime DateTime?
+  plannedEndTime   DateTime?
+  distance        Decimal?         @db.Decimal(10, 2)
+  fuelConsumed    Decimal?         @db.Decimal(10, 2)
+  avgSpeed        Decimal?         @db.Decimal(5, 2)
+  maxSpeed        Decimal?         @db.Decimal(5, 2)
+  idleTime        Int?
+  fuelCost        Decimal?         @db.Decimal(10, 2)
+  tollCost        Decimal?         @db.Decimal(10, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  vehicle         Vehicle          @relation(fields: [vehicleId], references: [id])
+  driver          Driver?          @relation(fields: [driverId], references: [id])
+  route           Route?           @relation(fields: [routeId], references: [id])
+  events          TripEvent[]
+
+  @@schema("transport")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([routeId])
+  @@index([status])
+  @@index([startTime])
+}
+
+model TripEvent {
+  id              String       @id @default(cuid())
+  tripId          String
+  type            TripEventType
+  timestamp       DateTime
+  location        String?
+  gpsCoordinates  Json?
+  speed           Decimal?     @db.Decimal(5, 2)
+  heading         Int?
+  altitude        Decimal?     @db.Decimal(8, 2)
+  data            Json?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+
+  trip            Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@schema("transport")
+  @@index([tripId])
+  @@index([tenantId])
+  @@index([type])
+  @@index([timestamp])
+}
+
+model DriverLog {
+  id              String       @id @default(cuid())
+  driverId        String
+  date            DateTime
+  startTime       DateTime
+  endTime         DateTime?
+  status          LogStatus
+  vehicleId       String?
+  routeId         String?
+  tripId          String?
+  startLocation   String?
+  endLocation     String?
+  distance        Decimal?     @db.Decimal(10, 2)
+  duration        Int?
+  onDutyHours     Decimal?     @db.Decimal(5, 2)
+  drivingHours    Decimal?     @db.Decimal(5, 2)
+  breakHours      Decimal?     @db.Decimal(5, 2)
+  offDutyHours    Decimal?     @db.Decimal(5, 2)
+  sleeperHours    Decimal?     @db.Decimal(5, 2)
+  violations      Json?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  driver          Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@schema("transport")
+  @@index([driverId])
+  @@index([date])
+  @@index([status])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  address   Json?
+  tenantId  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("transport")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+enum VehicleType {
+  TRUCK
+  TRAILER
+  CONTAINER_TRUCK
+  FLATBED
+  REEFER_TRUCK
+  TANKER
+  VAN
+  PICKUP
+  OTHER
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  IN_TRANSIT
+  MAINTENANCE
+  REPAIR
+  INSPECTION
+  RETIRED
+  SOLD
+}
+
+enum FuelType {
+  DIESEL
+  GASOLINE
+  CNG
+  LNG
+  ELECTRIC
+  HYBRID
+  HYDROGEN
+  BIOFUEL
+  OTHER
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+  ON_PROBATION
+}
+
+enum RouteType {
+  REGULAR
+  EXPRESS
+  DEDICATED
+  MULTI_STOP
+  BACKHAUL
+  REPOSITIONING
+  EMERGENCY
+}
+
+enum RouteStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum DeliveryType {
+  STANDARD
+  EXPRESS
+  SAME_DAY
+  NEXT_DAY
+  SCHEDULED
+  WHITE_GLOVE
+  HAZMAT
+  TEMPERATURE_CONTROLLED
+  OVERSIZE
+  LAST_MILE
+  FIRST_MILE
+  MIDDLE_MILE
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKUP_SCHEDULED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RETURNED
+  CANCELLED
+  ON_HOLD
+  EXCEPTION
+}
+
+enum DeliveryPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum PODStatus {
+  PENDING
+  SIGNED
+  PHOTO_ONLY
+  EXCEPTION
+  DISPUTED
+  VERIFIED
+}
+
+enum PODEventType {
+  DELIVERY_ATTEMPT
+  SIGNATURE_CAPTURED
+  PHOTO_CAPTURED
+  LOCATION_UPDATE
+  EXCEPTION_NOTED
+  CUSTOMER_CONTACT
+  VERIFICATION
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  PREDICTIVE
+  INSPECTION
+  REPAIR
+  RECALL
+  MODIFICATION
+  CLEANING
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+  OVERDUE
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+  DELAYED
+}
+
+enum TripEventType {
+  STARTED
+  STOPPED
+  LOCATION_UPDATE
+  SPEED_ALERT
+  GEOFENCE_ENTER
+  GEOFENCE_EXIT
+  IDLE_DETECTED
+  FUEL_LEVEL_LOW
+  ENGINE_ALERT
+  DRIVER_BEHAVIOR
+  ACCIDENT
+  BREAKDOWN
+  REFUEL
+  LOAD_UNLOAD
+  CUSTOM
+}
+
+enum LogStatus {
+  ON_DUTY
+  DRIVING
+  ON_DUTY_NOT_DRIVING
+  OFF_DUTY
+  SLEEPER_BERTH
+  OFF_DUTY_SLEEPER
+}

@@ -1,0 +1,1015 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["hr", "public"]
+}
+
+model Employee {
+  id              String           @id @default(cuid())
+  code            String
+  employeeNumber  String           @unique
+  firstName       String
+  lastName        String
+  middleName      String?
+  email           String
+  phone           String?
+  mobile          String?
+  dateOfBirth     DateTime?
+  gender          Gender?
+  maritalStatus   MaritalStatus?
+  nationality     String?
+  nationalId      String?
+  passportNumber  String?
+  passportExpiry  DateTime?
+  hireDate        DateTime
+  terminationDate DateTime?
+  status          EmployeeStatus   @default(ACTIVE)
+  employmentType  EmploymentType   @default(FULL_TIME)
+  departmentId    String?
+  positionId      String?
+  managerId       String?
+  supervisorId    String?
+  costCenterId    String?
+  locationId      String?
+  workScheduleId  String?
+  salaryGradeId   String?
+  currency        String           @default("USD")
+  baseSalary      Decimal          @db.Decimal(18, 2)
+  hourlyRate      Decimal?         @db.Decimal(10, 2)
+  payFrequency    PayFrequency     @default(MONTHLY)
+  bankAccountId   String?
+  taxId           String?
+  taxExempt       Boolean          @default(false)
+  emergencyContact Json?
+  addresses       EmployeeAddress[]
+  documents       EmployeeDocument[]
+  skills          EmployeeSkill[]
+  certifications  EmployeeCertification[]
+  training        EmployeeTraining[]
+  performanceReviews PerformanceReview[]
+  leaveBalances   LeaveBalance[]
+  attendance      Attendance[]
+  compensation    Compensation[]
+  benefits        EmployeeBenefit[]
+  assets          AssetAssignment[]
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@unique([tenantId, employeeNumber])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([status])
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([managerId])
+  @@index([hireDate])
+  @@index([terminationDate])
+}
+
+model EmployeeAddress {
+  id              String         @id @default(cuid())
+  type            AddressType    @default(RESIDENTIAL)
+  line1           String
+  line2           String?
+  city            String
+  state           String?
+  postalCode      String
+  country         String
+  isPrimary       Boolean        @default(false)
+  employeeId      String
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@unique([employeeId, type])
+  @@index([employeeId])
+  @@index([type])
+}
+
+model EmployeeDocument {
+  id              String           @id @default(cuid())
+  type            DocumentType
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  issuedBy        String?
+  issueDate       DateTime?
+  expiryDate      DateTime?
+  isVerified      Boolean          @default(false)
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  employeeId      String
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@index([employeeId])
+  @@index([type])
+  @@index([expiryDate])
+}
+
+model EmployeeSkill {
+  id              String   @id @default(cuid())
+  employeeId      String
+  skill           String
+  level           SkillLevel
+  yearsExperience Int?
+  certified       Boolean  @default(false)
+  certifiedAt     DateTime?
+  certifyingBody  String?
+  expiryDate      DateTime?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@unique([employeeId, skill])
+  @@index([employeeId])
+  @@index([skill])
+}
+
+model EmployeeCertification {
+  id              String   @id @default(cuid())
+  employeeId      String
+  name            String
+  issuingBody     String
+  certificateNumber String?
+  issueDate       DateTime
+  expiryDate      DateTime?
+  isActive        Boolean  @default(true)
+  verified        Boolean  @default(false)
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  documentUrl     String?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@index([employeeId])
+  @@index([name])
+  @@index([expiryDate])
+}
+
+model EmployeeTraining {
+  id              String           @id @default(cuid())
+  employeeId      String
+  trainingId      String
+  status          TrainingStatus   @default(ENROLLED)
+  enrolledAt      DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  score           Decimal?         @db.Decimal(5, 2)
+  certificateUrl  String?
+  feedback        String?
+  cost            Decimal?         @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  training        Training         @relation(fields: [trainingId], references: [id])
+
+  @@schema("hr")
+  @@unique([employeeId, trainingId])
+  @@index([employeeId])
+  @@index([trainingId])
+  @@index([status])
+}
+
+model Department {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  parentId        String?
+  managerId       String?
+  budget          Decimal? @db.Decimal(18, 2)
+  costCenterId    String?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  parent          Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children        Department[] @relation("DepartmentHierarchy")
+  positions       Position[]
+  employees       Employee[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([managerId])
+  @@index([isActive])
+}
+
+model Position {
+  id              String   @id @default(cuid())
+  code            String
+  title           String
+  description     String?
+  departmentId    String
+  reportsToId     String?
+  grade           String?
+  minSalary       Decimal? @db.Decimal(18, 2)
+  maxSalary       Decimal? @db.Decimal(18, 2)
+  currency        String   @default("USD")
+  isActive        Boolean  @default(true)
+  requiresManager Boolean  @default(false)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+
+  department      Department @relation(fields: [departmentId], references: [id])
+  reportsTo       Position?  @relation("PositionHierarchy", fields: [reportsToId], references: [id])
+  subordinates    Position[] @relation("PositionHierarchy")
+  employees       Employee[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([reportsToId])
+  @@index([isActive])
+}
+
+model WorkSchedule {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            ScheduleType
+  startTime       String
+  endTime         String
+  breakMinutes    Int      @default(60)
+  workDays        String[] @default(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"])
+  timezone        String   @default("UTC")
+  isFlexible      Boolean  @default(false)
+  coreHoursStart  String?
+  coreHoursEnd    String?
+  maxHoursPerDay  Decimal? @db.Decimal(4, 2)
+  maxHoursPerWeek Decimal? @db.Decimal(5, 2)
+  overtimePolicy  OvertimePolicy?
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean  @default(false)
+
+  employees       Employee[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model SalaryGrade {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  minSalary       Decimal  @db.Decimal(18, 2)
+  midSalary       Decimal  @db.Decimal(18, 2)
+  maxSalary       Decimal  @db.Decimal(18, 2)
+  currency        String   @default("USD")
+  stepIncrement   Decimal? @db.Decimal(18, 2)
+  steps           Int?
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employees       Employee[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model Attendance {
+  id              String           @id @default(cuid())
+  employeeId      String
+  date            DateTime
+  checkIn         DateTime?
+  checkOut        DateTime?
+  breakStart      DateTime?
+  breakEnd        DateTime?
+  status          AttendanceStatus @default(PRESENT)
+  workHours       Decimal?         @db.Decimal(5, 2)
+  overtimeHours   Decimal          @default(0) @db.Decimal(5, 2)
+  breakMinutes    Int              @default(0)
+  location        String?
+  ipAddress       String?
+  deviceInfo      Json?
+  notes           String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+}
+
+model LeaveBalance {
+  id              String         @id @default(cuid())
+  employeeId      String
+  leaveTypeId     String
+  year            Int
+  accruedDays     Decimal        @default(0) @db.Decimal(5, 2)
+  usedDays        Decimal        @default(0) @db.Decimal(5, 2)
+  pendingDays     Decimal        @default(0) @db.Decimal(5, 2)
+  carriedOverDays Decimal        @default(0) @db.Decimal(5, 2)
+  expiresAt       DateTime?
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       LeaveType      @relation(fields: [leaveTypeId], references: [id])
+
+  @@schema("hr")
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([employeeId])
+  @@index([leaveTypeId])
+  @@index([year])
+}
+
+model LeaveType {
+  id              String         @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  category        LeaveCategory
+  accrualRate     Decimal        @db.Decimal(5, 2)
+  accrualFrequency AccrualFrequency
+  maxAccrual      Decimal?       @db.Decimal(5, 2)
+  maxCarryOver    Decimal?       @db.Decimal(5, 2)
+  carryOverExpiry Int?
+  requiresApproval Boolean       @default(true)
+  minNoticeDays   Int            @default(0)
+  maxConsecutiveDays Int?
+  isPaid          Boolean        @default(true)
+  color           String?
+  icon            String?
+  isActive        Boolean        @default(true)
+  tenantId        String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  balances        LeaveBalance[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([category])
+  @@index([isActive])
+}
+
+model LeaveRequest {
+  id              String           @id @default(cuid())
+  code            String
+  employeeId      String
+  leaveTypeId     String
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Decimal          @db.Decimal(5, 2)
+  halfDay         Boolean          @default(false)
+  reason          String
+  status          LeaveStatus      @default(PENDING)
+  requestedAt     DateTime         @default(now())
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  cancelReason    String?
+  cancelledAt     DateTime?
+  cancelledBy     String?
+  supportingDoc   String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       LeaveType        @relation(fields: [leaveTypeId], references: [id])
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+model PerformanceReview {
+  id              String           @id @default(cuid())
+  code            String
+  employeeId      String
+  reviewerId      String
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  type            ReviewType
+  status          ReviewStatus     @default(DRAFT)
+  overallScore    Decimal?         @db.Decimal(5, 2)
+  goals           Json?
+  strengths       String?
+  improvements    String?
+  comments        String?
+  employeeComments String?
+  reviewedAt      DateTime?
+  acknowledgedAt  DateTime?
+  nextReviewDate  DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer        User             @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([reviewerId])
+  @@index([status])
+  @@index([period])
+}
+
+model Compensation {
+  id              String           @id @default(cuid())
+  employeeId      String
+  type            CompensationType
+  amount          Decimal          @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  effectiveDate   DateTime
+  endDate         DateTime?
+  frequency       PayFrequency
+  isRecurring     Boolean          @default(false)
+  reason          String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@index([employeeId])
+  @@index([type])
+  @@index([effectiveDate])
+}
+
+model EmployeeBenefit {
+  id              String           @id @default(cuid())
+  employeeId      String
+  benefitId       String
+  status          BenefitStatus    @default(ENROLLED)
+  enrolledAt      DateTime
+  effectiveDate   DateTime
+  endDate         DateTime?
+  coverageAmount  Decimal?         @db.Decimal(18, 2)
+  premiumAmount   Decimal?         @db.Decimal(18, 2)
+  employerContribution Decimal?    @db.Decimal(18, 2)
+  employeeContribution Decimal?    @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  beneficiary     Json?
+  documents       String[]         @default([])
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  benefit         Benefit          @relation(fields: [benefitId], references: [id])
+
+  @@schema("hr")
+  @@unique([employeeId, benefitId])
+  @@index([employeeId])
+  @@index([benefitId])
+  @@index([status])
+}
+
+model Benefit {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            BenefitType
+  provider        String?
+  providerContact Json?
+  cost            Decimal? @db.Decimal(18, 2)
+  currency        String   @default("USD")
+  coverageDetails String?
+  eligibility     Json?
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  enrollments     EmployeeBenefit[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model AssetAssignment {
+  id              String           @id @default(cuid())
+  employeeId      String
+  assetId         String
+  assignedAt      DateTime
+  returnedAt      DateTime?
+  condition       AssetCondition   @default(GOOD)
+  returnCondition AssetCondition?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@schema("hr")
+  @@index([employeeId])
+  @@index([assetId])
+}
+
+model Training {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  category        TrainingCategory
+  type            TrainingType
+  provider        String?
+  providerContact Json?
+  duration        Int
+  durationUnit    DurationUnit
+  maxParticipants Int?
+  minParticipants Int?
+  cost            Decimal?         @db.Decimal(18, 2)
+  currency        String           @default("USD")
+  location        String?
+  isOnline        Boolean          @default(false)
+  onlineUrl       String?
+  materials       String[]         @default([])
+  prerequisites   String[]         @default([])
+  isMandatory     Boolean          @default(false)
+  targetAudience  String[]         @default([])
+  validityMonths  Int?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  participants    EmployeeTraining[]
+
+  @@schema("hr")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([category])
+  @@index([type])
+  @@index([isActive])
+}
+
+model PerformanceGoal {
+  id              String           @id @default(cuid())
+  employeeId      String
+  reviewId        String?
+  title           String
+  description     String?
+  type            GoalType
+  metric          String
+  targetValue     Decimal          @db.Decimal(18, 2)
+  currentValue    Decimal          @default(0) @db.Decimal(18, 2)
+  unit            String
+  weight          Int              @default(100)
+  startDate       DateTime
+  endDate         DateTime
+  status          GoalStatus       @default(NOT_STARTED)
+  progress        Int              @default(0)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("hr")
+  @@index([employeeId])
+  @@index([reviewId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  firstName       String
+  lastName       String
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("hr")
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+  DOMESTIC_PARTNER
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+  RETIRED
+  ON_PROBATION
+  CONTRACT_END
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERN
+  FREELANCE
+  SEASONAL
+  APPRENTICE
+}
+
+enum PayFrequency {
+  WEEKLY
+  BI_WEEKLY
+  SEMI_MONTHLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum AddressType {
+  RESIDENTIAL
+  MAILING
+  BILLING
+  EMERGENCY
+  OTHER
+}
+
+enum DocumentType {
+  CONTRACT
+  OFFER_LETTER
+  ID_CARD
+  PASSPORT
+  VISA
+  WORK_PERMIT
+  DRIVERS_LICENSE
+  CERTIFICATE
+  DEGREE
+  TRANSCRIPT
+  MEDICAL
+  INSURANCE
+  TAX_FORM
+  NDA
+  POLICY_ACKNOWLEDGMENT
+  PERFORMANCE_REVIEW
+  DISCIPLINARY
+  OTHER
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+  MASTER
+}
+
+enum TrainingStatus {
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+  WAITLISTED
+  DEFERRED
+}
+
+enum ScheduleType {
+  FIXED
+  FLEXIBLE
+  SHIFT
+  ROTATING
+  COMPRESSED
+  REMOTE
+  HYBRID
+}
+
+enum OvertimePolicy {
+  NONE
+  STANDARD
+  DOUBLE_TIME
+  TIME_AND_HALF
+  COMPENSATORY_TIME
+  CUSTOM
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EARLY_DEPARTURE
+  HALF_DAY
+  ON_LEAVE
+  REMOTE
+  HOLIDAY
+  TRAINING
+  MEETING
+  BUSINESS_TRIP
+  SICK
+  PERSONAL
+  MATERNITY
+  PATERNITY
+  BEREAVEMENT
+  JURY_DUTY
+  MILITARY
+  OTHER
+}
+
+enum LeaveCategory {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  EMERGENCY
+  UNPAID
+  STUDY
+  COMPASSIONATE
+  MARRIAGE
+  BEREAVEMENT
+  SABBATICAL
+  UNPAID_LEAVE
+  OTHER
+}
+
+enum AccrualFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  PER_PAY_PERIOD
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  WITHDRAWN
+  EXPIRED
+  PARTIAL
+}
+
+enum ReviewType {
+  ANNUAL
+  PROBATIONARY
+  MID_YEAR
+  QUARTERLY
+  PROJECT_BASED
+  PROMOTION
+  PERFORMANCE_IMPROVEMENT
+  360_DEGREE
+  SELF_ASSESSMENT
+  PEER_REVIEW
+}
+
+enum ReviewStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+  ARCHIVED
+}
+
+enum CompensationType {
+  BASE_SALARY
+  BONUS
+  COMMISSION
+  OVERTIME
+  ALLOWANCE
+  REIMBURSEMENT
+  STOCK_OPTION
+  RSU
+  PROFIT_SHARING
+  SIGNING_BONUS
+  RETENTION_BONUS
+  REFERRAL_BONUS
+  HAZARD_PAY
+  SHIFT_DIFFERENTIAL
+  TUITION_REIMBURSEMENT
+  CERTIFICATION_BONUS
+  OTHER
+}
+
+enum PayFrequency {
+  WEEKLY
+  BI_WEEKLY
+  SEMI_MONTHLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum BenefitType {
+  HEALTH_INSURANCE
+  DENTAL_INSURANCE
+  VISION_INSURANCE
+  LIFE_INSURANCE
+  DISABILITY_INSURANCE
+  RETIREMENT_PLAN
+  PENSION
+  401K
+  PENSION_FUND
+  STOCK_OPTIONS
+  WELLNESS_PROGRAM
+  GYM_MEMBERSHIP
+  CHILDCARE
+  TUITION_ASSISTANCE
+  PROFESSIONAL_DEVELOPMENT
+  COMMUTER_BENEFITS
+  MEAL_ALLOWANCE
+  HOUSING_ALLOWANCE
+  TRANSPORTATION
+  PHONE_ALLOWANCE
+  INTERNET_ALLOWANCE
+  EQUIPMENT_ALLOWANCE
+  RELOCATION
+  OTHER
+}
+
+enum BenefitStatus {
+  ENROLLED
+  WAITING
+  WAIVED
+  TERMINATED
+  SUSPENDED
+  EXPIRED
+  PENDING
+}
+
+enum AssetCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+  LOST
+  STOLEN
+}
+
+enum TrainingCategory {
+  TECHNICAL
+  SOFT_SKILLS
+  LEADERSHIP
+  COMPLIANCE
+  SAFETY
+  SECURITY
+  LANGUAGE
+  PRODUCT
+  PROCESS
+  MANAGEMENT
+  SALES
+  CUSTOMER_SERVICE
+  IT_SECURITY
+  DATA_PRIVACY
+  DIVERSITY_INCLUSION
+  WELLNESS
+  ONBOARDING
+  ORIENTATION
+  OTHER
+}
+
+enum TrainingType {
+  INSTRUCTOR_LED
+  E_LEARNING
+  BLENDED
+  WORKSHOP
+  SEMINAR
+  WEBINAR
+  ON_THE_JOB
+  MENTORING
+  COACHING
+  SIMULATION
+  CERTIFICATION
+  CONFERENCE
+  CONVENTION
+  OTHER
+}
+
+enum DurationUnit {
+  HOURS
+  DAYS
+  WEEKS
+  MONTHS
+}
+
+enum GoalType {
+  KPI
+  OKR
+  SMART
+  MILESTONE
+  BEHAVIORAL
+  COMPETENCY
+  PROJECT
+  LEARNING
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
+  COMPLETED
+  EXCEEDED
+  CANCELLED
+  DEFERRED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}

@@ -1,0 +1,609 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["integration", "public"]
+}
+
+model Integration {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            IntegrationType
+  status          IntegrationStatus @default(DRAFT)
+  protocol        Protocol
+  baseUrl         String?
+  version         String           @default("v1")
+  authentication  Json
+  headers         Json?
+  rateLimit       RateLimitConfig?
+  retryPolicy     RetryPolicy?
+  circuitBreaker  CircuitBreakerConfig?
+  timeout         Int              @default(30000)
+  isActive        Boolean          @default(true)
+  isSystem        Boolean          @default(false)
+  documentation   String?
+  tags            String[]         @default([])
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  endpoints       Endpoint[]
+  webhooks        Webhook[]
+  mappings        Mapping[]
+  credentials     Credential[]
+  executions      ExecutionLog[]
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([isActive])
+  @@index([isSystem])
+}
+
+model Endpoint {
+  id              String           @id @default(cuid())
+  integrationId   String
+  code            String
+  name            String
+  description     String?
+  method          HttpMethod
+  path            String
+  summary         String?
+  description     String?
+  parameters      Json?
+  requestBody     Json?
+  responses       Json?
+  authentication  Json?
+  headers         Json?
+  queryParams     Json?
+  pathParams      Json?
+  isActive        Boolean          @default(true)
+  isDeprecated    Boolean          @default(false)
+  deprecatedSince DateTime?
+  tags            String[]         @default([])
+  examples        Json?
+  security        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  integration     Integration      @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  mappings        Mapping[]
+
+  @@schema("integration")
+  @@unique([integrationId, code])
+  @@index([integrationId])
+  @@index([method])
+  @@index([path])
+  @@index([isActive])
+}
+
+model Webhook {
+  id              String           @id @default(cuid())
+  integrationId   String
+  code            String
+  name            String
+  description     String?
+  url             String
+  events          String[]
+  secret          String?
+  headers         Json?
+  filter          Json?
+  retryPolicy     RetryPolicy?
+  isActive        Boolean          @default(true)
+  isVerified      Boolean          @default(false)
+  verificationUrl String?
+  lastTriggeredAt DateTime?
+  triggerCount    Int              @default(0)
+  failureCount    Int              @default(0)
+  lastError       String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  integration     Integration      @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  deliveries      WebhookDelivery[]
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([integrationId])
+  @@index([isActive])
+  @@index([isVerified])
+}
+
+model WebhookDelivery {
+  id              String           @id @default(cuid())
+  webhookId       String
+  event           String
+  payload         Json
+  headers         Json?
+  responseCode    Int?
+  responseBody    String?
+  status          DeliveryStatus   @default(PENDING)
+  attempts        Int              @default(0)
+  nextRetryAt     DateTime?
+  lastAttemptAt   DateTime?
+  errorMessage    String?
+  responseTime    Int?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  webhook         Webhook          @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@schema("integration")
+  @@index([webhookId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Mapping {
+  id              String           @id @default(cuid())
+  integrationId   String
+  endpointId      String?
+  code            String
+  name            String
+  description     String?
+  sourceSchema    Json
+  targetSchema    Json
+  transformations Json?
+  conditions      Json?
+  isActive        Boolean          @default(true)
+  priority        Int              @default(0)
+  version         Int              @default(1)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  integration     Integration      @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  endpoint        Endpoint?        @relation(fields: [endpointId], references: [id])
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([integrationId])
+  @@index([endpointId])
+  @@index([isActive])
+}
+
+model Credential {
+  id              String           @id @default(cuid())
+  integrationId   String
+  code            String
+  name            String
+  type            CredentialType
+  provider        String?
+  credentials     Json
+  scopes          String[]         @default([])
+  expiresAt       DateTime?
+  isEncrypted     Boolean          @default(true)
+  isActive        Boolean          @default(true)
+  lastUsedAt      DateTime?
+  usageCount      Int              @default(0)
+  rotatedAt       DateTime?
+  rotatedBy       String?
+  rotationReason  String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  integration     Integration      @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([integrationId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model ExecutionLog {
+  id              String           @id @default(cuid())
+  integrationId   String
+  endpointId      String?
+  correlationId   String
+  requestId       String?
+  method          HttpMethod
+  url             String
+  requestHeaders  Json?
+  requestBody     Json?
+  requestParams   Json?
+  responseCode    Int?
+  responseHeaders Json?
+  responseBody    Json?
+  status          ExecutionStatus  @default(SUCCESS)
+  errorMessage    String?
+  errorStack      String?
+  duration        Int
+  requestSize     Int?
+  responseSize    Int?
+  clientIp        String?
+  userAgent       String?
+  userId          String?
+  traceId         String?
+  spanId          String?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+
+  integration     Integration      @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  endpoint        Endpoint?        @relation(fields: [endpointId], references: [id])
+
+  @@schema("integration")
+  @@index([tenantId])
+  @@index([integrationId])
+  @@index([endpointId])
+  @@index([correlationId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RateLimitConfig {
+  id              String           @id @default(cuid())
+  integrationId   String
+  endpointId      String?
+  windowMs        Int
+  maxRequests     Int
+  keyGenerator    String?
+  skipSuccessful  Boolean          @default(false)
+  skipFailed      Boolean          @default(false)
+  handler         String?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@index([integrationId])
+  @@index([endpointId])
+}
+
+model RetryPolicy {
+  id              String           @id @default(cuid())
+  maxRetries      Int              @default(3)
+  baseDelayMs     Int              @default(1000)
+  maxDelayMs      Int              @default(30000)
+  backoffMultiplier Float          @default(2)
+  retryableCodes  Int[]            @default([408, 429, 500, 502, 503, 504])
+  retryableErrors String[]         @default([])
+  jitter          Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@index([tenantId])
+}
+
+model CircuitBreakerConfig {
+  id              String           @id @default(cuid())
+  failureThreshold Int             @default(5)
+  successThreshold Int             @default(2)
+  timeoutMs       Int              @default(60000)
+  resetTimeoutMs  Int              @default(30000)
+  halfOpenRequests Int             @default(3)
+  isEnabled       Boolean          @default(true)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@index([tenantId])
+}
+
+model ApiKey {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  keyHash         String
+  keyPrefix       String
+  permissions     String[]
+  allowedIps      String[]         @default([])
+  allowedDomains  String[]         @default([])
+  rateLimit       RateLimitConfig?
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  usageCount      Int              @default(0)
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  userId          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([userId])
+}
+
+model RateLimitRule {
+  id              String           @id @default(cuid())
+  apiKeyId        String?
+  endpoint        String?
+  method          HttpMethod?
+  windowMs        Int
+  maxRequests     Int
+  keyPrefix       String?
+  isActive        Boolean          @default(true)
+  priority        Int              @default(0)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@index([tenantId])
+  @@index([apiKeyId])
+  @@index([endpoint])
+}
+
+model Transformation {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            TransformationType
+  inputSchema     Json
+  outputSchema    Json
+  script          String?
+  library         String?
+  version         String           @default("1.0.0")
+  isActive        Boolean          @default(true)
+  isBuiltIn       Boolean          @default(false)
+  parameters      Json?
+  testCases       Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model Schema {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            SchemaType
+  format          SchemaFormat
+  version         String           @default("1.0.0")
+  definition      Json
+  uiSchema        Json?
+  examples        Json?
+  isActive        Boolean          @default(true)
+  isDeprecated    Boolean          @default(false)
+  deprecatedSince DateTime?
+  tags            String[]         @default([])
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model EndpointMonitor {
+  id              String           @id @default(cuid())
+  endpointId      String
+  isActive        Boolean          @default(true)
+  intervalMs      Int              @default(60000)
+  timeoutMs       Int              @default(5000)
+  expectedCodes   Int[]            @default([200, 201, 204])
+  checkContent    Json?
+  alertChannels   NotificationChannel[]
+  alertThresholds Json?
+  lastCheckAt     DateTime?
+  lastStatus      MonitorStatus?
+  consecutiveFails Int             @default(0)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("integration")
+  @@unique([endpointId])
+  @@index([tenantId])
+  @@index([endpointId])
+  @@index([isActive])
+}
+
+model EndpointCheck {
+  id              String           @id @default(cuid())
+  monitorId       String
+  status          MonitorStatus
+  responseTime    Int
+  statusCode      Int?
+  responseBody    String?
+  errorMessage    String?
+  checkedAt       DateTime         @default(now())
+
+  monitor         EndpointMonitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@schema("integration")
+  @@index([monitorId])
+  @@index([status])
+  @@index([checkedAt])
+}
+
+enum IntegrationType {
+  REST_API
+  SOAP
+  GRAPHQL
+  GRPC
+  WEBSOCKET
+  MESSAGE_QUEUE
+  FILE_TRANSFER
+  DATABASE
+  EMAIL
+  SMS
+  WEBHOOK
+  FILE_WATCHER
+  SCHEDULED
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+  ERROR
+  MAINTENANCE
+  TESTING
+  PENDING_APPROVAL
+}
+
+enum Protocol {
+  HTTP
+  HTTPS
+  WS
+  WSS
+  TCP
+  UDP
+  AMQP
+  MQTT
+  KAFKA
+  RABBITMQ
+  GRPC
+  FTP
+  SFTP
+  S3
+  DATABASE
+  SMTP
+  IMAP
+  POP3
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+  HEAD
+  OPTIONS
+  TRACE
+  CONNECT
+}
+
+enum IntegrationStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+  ERROR
+  MAINTENANCE
+  TESTING
+  PENDING_APPROVAL
+}
+
+enum CredentialType {
+  API_KEY
+  BEARER_TOKEN
+  BASIC_AUTH
+  OAUTH2
+  JWT
+  CERTIFICATE
+  SSH_KEY
+  USERNAME_PASSWORD
+  API_SECRET
+  HMAC
+  CUSTOM
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  RETRYING
+  CANCELLED
+  EXPIRED
+  BLOCKED
+}
+
+enum ExecutionStatus {
+  SUCCESS
+  FAILED
+  TIMEOUT
+  CANCELLED
+  PARTIAL
+  RETRYING
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}
+
+enum TransformationType {
+  XSLT
+  JSONATA
+  JAVASCRIPT
+  PYTHON
+  GROOVY
+  JQ
+  LIQUID
+  MUSTACHE
+  HANDLEBARS
+  JINJA2
+  CUSTOM
+}
+
+enum SchemaType {
+  REQUEST
+  RESPONSE
+  ERROR
+  EVENT
+  ENTITY
+  ENUM
+  COMPLEX
+  SIMPLE
+}
+
+enum SchemaFormat {
+  JSON_SCHEMA
+  OPENAPI
+  GRAPHQL_SCHEMA
+  PROTOBUF
+  AVRO
+  THRIFT
+  XML_SCHEMA
+  RELAX_NG
+  JSON
+  YAML
+  CUSTOM
+}
+
+enum MonitorStatus {
+  UP
+  DOWN
+  DEGRADED
+  UNKNOWN
+  MAINTENANCE
+}

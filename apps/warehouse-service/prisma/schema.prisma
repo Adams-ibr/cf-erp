@@ -1,0 +1,593 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["warehouse", "public"]
+}
+
+model Warehouse {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            WarehouseType    @default(GENERAL)
+  status          WarehouseStatus  @default(ACTIVE)
+  address         Json
+  contact         Json?
+  capacity        WarehouseCapacity?
+  managerId       String?
+  operatingHours  Json?
+  timezone        String           @default("UTC")
+  certifications  String[]         @default([])
+  features        String[]         @default([])
+  temperatureControlled Boolean     @default(false)
+  hazardousAllowed Boolean         @default(false)
+  customsBonded   Boolean          @default(false)
+  ftzNumber       String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  locations       Location[]
+  inventory       Inventory[]
+  stockMovements  StockMovement[]
+  inventoryCounts InventoryCount[]
+  replenishments  Replenishment[]
+
+  @@schema("warehouse")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([status])
+  @@index([managerId])
+}
+
+model WarehouseCapacity {
+  id              String   @id @default(cuid())
+  warehouseId     String   @unique
+  maxWeight       Decimal  @db.Decimal(18, 2)
+  maxVolume       Decimal  @db.Decimal(18, 2)
+  maxPallets      Int?
+  maxSKUs         Int?
+  currentWeight   Decimal  @default(0) @db.Decimal(18, 2)
+  currentVolume   Decimal  @default(0) @db.Decimal(18, 2)
+  currentPallets  Int      @default(0)
+  currentSKUs     Int      @default(0)
+  unit            String   @default("KG")
+  updatedAt       DateTime @updatedAt
+
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@schema("warehouse")
+  @@index([warehouseId])
+}
+
+model Location {
+  id              String       @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            LocationType @default(RACK)
+  zone            String?
+  aisle           String?
+  rack            String?
+  shelf           String?
+  bin             String?
+  level           Int?
+  position        String?
+  barcode         String?
+  maxWeight       Decimal?     @db.Decimal(18, 2)
+  maxVolume       Decimal?     @db.Decimal(18, 2)
+  dimensions      Json?
+  isPickable      Boolean      @default(true)
+  isReplenishable Boolean      @default(true)
+  status          LocationStatus @default(ACTIVE)
+  warehouseId     String
+  parentId        String?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean      @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  warehouse       Warehouse    @relation(fields: [warehouseId], references: [id])
+  parent          Location?    @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children        Location[]   @relation("LocationHierarchy")
+  inventory       Inventory[]
+  stockMovements  StockMovement[]
+
+  @@schema("warehouse")
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+  @@index([type])
+  @@index([zone])
+  @@index([status])
+  @@index([parentId])
+  @@index([barcode])
+}
+
+model Inventory {
+  id                  String         @id @default(cuid())
+  sku                 String
+  name                String
+  description         String?
+  category            String?
+  barcode             String?
+  serialNumber        String?
+  lotNumber           String?
+  batchNumber         String?
+  expiryDate          DateTime?
+  manufactureDate     DateTime?
+  quantity            Decimal        @default(0) @db.Decimal(18, 4)
+  reservedQuantity    Decimal        @default(0) @db.Decimal(18, 4)
+  availableQuantity   Decimal        @default(0) @db.Decimal(18, 4)
+  unit                String
+  weight              Decimal?       @db.Decimal(18, 4)
+  volume              Decimal?       @db.Decimal(18, 4)
+  dimensions          Json?
+  value               Decimal        @default(0) @db.Decimal(18, 2)
+  currency            String         @default("USD")
+  costMethod          CostMethod     @default(FIFO)
+  standardCost        Decimal?       @db.Decimal(18, 4)
+  averageCost         Decimal?       @db.Decimal(18, 4)
+  lastCost            Decimal?       @db.Decimal(18, 4)
+  minStockLevel       Decimal        @default(0) @db.Decimal(18, 4)
+  maxStockLevel       Decimal?       @db.Decimal(18, 4)
+  reorderPoint        Decimal?       @db.Decimal(18, 4)
+  reorderQuantity     Decimal?       @db.Decimal(18, 4)
+  leadTimeDays        Int?
+  status              InventoryStatus @default(AVAILABLE)
+  condition           InventoryCondition @default(NEW)
+  locationId          String?
+  warehouseId         String
+  ownerId             String?
+  tenantId            String
+  branchId            String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  deletedAt           DateTime?
+  isDeleted           Boolean        @default(false)
+  createdBy           String?
+  updatedBy           String?
+
+  location            Location?      @relation(fields: [locationId], references: [id])
+  warehouse           Warehouse      @relation(fields: [warehouseId], references: [id])
+  stockMovements      StockMovement[]
+  inventoryCounts     InventoryCountItem[]
+
+  @@schema("warehouse")
+  @@unique([warehouseId, sku])
+  @@index([warehouseId])
+  @@index([locationId])
+  @@index([sku])
+  @@index([barcode])
+  @@index([serialNumber])
+  @@index([lotNumber])
+  @@index([batchNumber])
+  @@index([status])
+  @@index([category])
+  @@index([expiryDate])
+  @@index([ownerId])
+}
+
+model StockMovement {
+  id                  String           @id @default(cuid())
+  code                String
+  type                MovementType
+  reason              MovementReason
+  referenceType       String?
+  referenceId         String?
+  inventoryId         String
+  fromLocationId      String?
+  toLocationId        String?
+  quantity            Decimal        @db.Decimal(18, 4)
+  unit                String
+  unitCost            Decimal?       @db.Decimal(18, 4)
+  totalCost           Decimal?       @db.Decimal(18, 2)
+  currency            String         @default("USD")
+  lotNumber           String?
+  batchNumber         String?
+  serialNumbers       String[]       @default([])
+  status              MovementStatus @default(COMPLETED)
+  documentNumber      String?
+  documentDate        DateTime?
+  performedBy         String
+  approvedBy          String?
+  approvedAt          DateTime?
+  notes               String?
+  metadata            Json?
+  warehouseId         String
+  tenantId            String
+  branchId            String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  inventory           Inventory      @relation(fields: [inventoryId], references: [id])
+  fromLocation        Location?      @relation("StockMovementFromLocation", fields: [fromLocationId], references: [id])
+  toLocation          Location?      @relation("StockMovementToLocation", fields: [toLocationId], references: [id])
+
+  @@schema("warehouse")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([inventoryId])
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([type])
+  @@index([reason])
+  @@index([referenceType, referenceId])
+  @@index([performedBy])
+  @@index([createdAt])
+}
+
+model InventoryCount {
+  id              String             @id @default(cuid())
+  code            String
+  name            String
+  type            CountType
+  status          CountStatus        @default(PLANNED)
+  warehouseId     String
+  locationIds     String[]           @default([])
+  categoryIds     String[]           @default([])
+  skuIds          String[]           @default([])
+  startedAt       DateTime?
+  completedAt     DateTime?
+  scheduledAt     DateTime?
+  assignedTo      String?
+  supervisedBy    String?
+  varianceThreshold Decimal          @default(0) @db.Decimal(5, 2)
+  totalItems      Int                @default(0)
+  countedItems    Int                @default(0)
+  varianceItems   Int                @default(0)
+  totalVariance   Decimal            @default(0) @db.Decimal(18, 2)
+  notes           String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean            @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  warehouse       Warehouse          @relation(fields: [warehouseId], references: [id])
+  items           InventoryCountItem[]
+
+  @@schema("warehouse")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([startedAt])
+}
+
+model InventoryCountItem {
+  id                  String         @id @default(cuid())
+  inventoryCountId    String
+  inventoryId         String
+  locationId          String?
+  expectedQuantity    Decimal        @db.Decimal(18, 4)
+  countedQuantity     Decimal?       @db.Decimal(18, 4)
+  variance            Decimal?       @db.Decimal(18, 4)
+  varianceValue       Decimal?       @db.Decimal(18, 2)
+  countedBy           String?
+  countedAt           DateTime?
+  status              CountItemStatus @default(PENDING)
+  notes               String?
+  metadata            Json?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  inventoryCount      InventoryCount @relation(fields: [inventoryCountId], references: [id], onDelete: Cascade)
+  inventory           Inventory      @relation(fields: [inventoryId], references: [id])
+  location            Location?      @relation(fields: [locationId], references: [id])
+
+  @@schema("warehouse")
+  @@unique([inventoryCountId, inventoryId])
+  @@index([inventoryCountId])
+  @@index([inventoryId])
+  @@index([locationId])
+  @@index([status])
+}
+
+model Replenishment {
+  id                  String             @id @default(cuid())
+  code                String
+  type                ReplenishmentType
+  status              ReplenishmentStatus @default(PENDING)
+  priority            ReplenishmentPriority @default(NORMAL)
+  warehouseId         String
+  fromLocationId      String?
+  toLocationId        String?
+  inventoryId         String
+  requestedQuantity   Decimal            @db.Decimal(18, 4)
+  allocatedQuantity   Decimal            @default(0) @db.Decimal(18, 4)
+  pickedQuantity      Decimal            @default(0) @db.Decimal(18, 4)
+  deliveredQuantity   Decimal            @default(0) @db.Decimal(18, 4)
+  requestedBy         String
+  assignedTo          String?
+  approvedBy          String?
+  approvedAt          DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  dueDate             DateTime?
+  notes               String?
+  metadata            Json?
+  tenantId            String
+  branchId            String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+  isDeleted           Boolean            @default(false)
+  createdBy           String?
+  updatedBy           String?
+
+  warehouse           Warehouse          @relation(fields: [warehouseId], references: [id])
+  fromLocation        Location?          @relation("ReplenishmentFromLocation", fields: [fromLocationId], references: [id])
+  toLocation          Location?          @relation("ReplenishmentToLocation", fields: [toLocationId], references: [id])
+  inventory           Inventory          @relation(fields: [inventoryId], references: [id])
+
+  @@schema("warehouse")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([inventoryId])
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([dueDate])
+}
+
+model InventoryValuation {
+  id                  String         @id @default(cuid())
+  warehouseId         String
+  valuationDate       DateTime
+  method              ValuationMethod
+  totalItems          Int
+  totalQuantity       Decimal        @db.Decimal(18, 4)
+  totalValue          Decimal        @db.Decimal(18, 2)
+  currency            String         @default("USD")
+  breakdown           Json?
+  status              ValuationStatus @default(DRAFT)
+  calculatedBy        String
+  approvedBy          String?
+  approvedAt          DateTime?
+  tenantId            String
+  branchId            String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@schema("warehouse")
+  @@unique([warehouseId, valuationDate, method])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([valuationDate])
+  @@index([status])
+}
+
+model WarehouseDocument {
+  id              String   @id @default(cuid())
+  warehouseId     String
+  type            String
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  @@schema("warehouse")
+  @@index([warehouseId])
+  @@index([tenantId])
+}
+
+enum WarehouseType {
+  GENERAL
+  BONDED
+  COLD_STORAGE
+  HAZARDOUS
+  CONTAINER_FREIGHT_STATION
+  INLAND_CONTAINER_DEPOT
+  DISTRIBUTION_CENTER
+  FULFILLMENT_CENTER
+  CROSS_DOCK
+  OTHER
+}
+
+enum WarehouseStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  CONSTRUCTION
+  CLOSED
+  SOLD
+}
+
+enum LocationType {
+  RECEIVING
+  STAGING
+  RACK
+  SHELF
+  BIN
+  FLOOR
+  QUARANTINE
+  SHIPPING
+  PACKING
+  QUALITY_CONTROL
+  RETURN
+  OVERFLOW
+  OTHER
+}
+
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  FULL
+  RESERVED
+  DAMAGED
+}
+
+enum InventoryStatus {
+  AVAILABLE
+  ALLOCATED
+  IN_TRANSIT
+  QUARANTINE
+  DAMAGED
+  EXPIRED
+  ON_HOLD
+  RESERVED
+  DISCONTINUED
+}
+
+enum InventoryCondition {
+  NEW
+  USED
+  REFURBISHED
+  DAMAGED
+  EXPIRED
+  DEFECTIVE
+}
+
+enum CostMethod {
+  FIFO
+  LIFO
+  WEIGHTED_AVERAGE
+  STANDARD_COST
+  SPECIFIC_IDENTIFICATION
+}
+
+enum MovementType {
+  RECEIPT
+  PUTAWAY
+  PICK
+  PACK
+  SHIPMENT
+  TRANSFER
+  REPLENISHMENT
+  ADJUSTMENT
+  RETURN
+  DISPOSAL
+  CYCLE_COUNT
+  PHYSICAL_COUNT
+  TRANSFER_IN
+  TRANSFER_OUT
+  PRODUCTION_ISSUE
+  PRODUCTION_RECEIPT
+  KITTING
+  DEKITTING
+}
+
+enum MovementReason {
+  PURCHASE_ORDER
+  SALES_ORDER
+  TRANSFER_ORDER
+  RETURN_ORDER
+  ADJUSTMENT_POSITIVE
+  ADJUSTMENT_NEGATIVE
+  DAMAGE
+  EXPIRY
+  QUALITY_HOLD
+  REWORK
+  SAMPLE
+  PROMOTION
+  SEASONAL
+  REBALANCING
+  CONSOLIDATION
+  DECONSOLIDATION
+  OTHER
+}
+
+enum MovementStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+  ON_HOLD
+}
+
+enum CountType {
+  FULL
+  CYCLE
+  SPOT
+  PERPETUAL
+  YEAR_END
+  RECEIPT_VERIFICATION
+  SHIPMENT_VERIFICATION
+}
+
+enum CountStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum CountItemStatus {
+  PENDING
+  COUNTED
+  VARIANCE
+  APPROVED
+  REJECTED
+}
+
+enum ReplenishmentType {
+  MIN_MAX
+  KANBAN
+  DEMAND_DRIVEN
+  FORECAST_BASED
+  MANUAL
+  EMERGENCY
+}
+
+enum ReplenishmentStatus {
+  PENDING
+  APPROVED
+  ALLOCATED
+  PICKING
+  IN_TRANSIT
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum ReplenishmentPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum ValuationMethod {
+  FIFO
+  LIFO
+  WEIGHTED_AVERAGE
+  STANDARD_COST
+  MOVING_AVERAGE
+  SPECIFIC_IDENTIFICATION
+}
+
+enum ValuationStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  PUBLISHED
+}

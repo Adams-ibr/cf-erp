@@ -1,0 +1,699 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["customs", "public"]
+}
+
+model CustomsEntry {
+  id                String            @id @default(cuid())
+  code              String
+  reference         String?
+  type              CustomsEntryType
+  status            CustomsStatus     @default(NOT_STARTED)
+  entryNumber       String?
+  shipmentId        String?
+  jobId             String?
+  bookingId         String?
+  customerId        String
+  supplierId        String?
+  brokerId          String?
+  carrierId         String?
+  vesselId          String?
+  voyageId          String?
+  containerId       String?
+  originCountry     String
+  destinationCountry String
+  portOfEntry       String
+  portOfExit        String?
+  incoterm          Incoterm          @default(FOB)
+  currency          String            @default("USD")
+  exchangeRate      Decimal           @default(1) @db.Decimal(18, 6)
+  totalValue        Decimal           @db.Decimal(18, 2)
+  totalDuty         Decimal           @default(0) @db.Decimal(18, 2)
+  totalTax          Decimal           @default(0) @db.Decimal(18, 2)
+  totalFees         Decimal           @default(0) @db.Decimal(18, 2)
+  totalPayable      Decimal           @default(0) @db.Decimal(18, 2)
+  paidAmount        Decimal           @default(0) @db.Decimal(18, 2)
+  balanceAmount     Decimal           @default(0) @db.Decimal(18, 2)
+  filingDate        DateTime?
+  acceptanceDate    DateTime?
+  clearanceDate     DateTime?
+  releaseDate       DateTime?
+  examDate          DateTime?
+  examType          ExamType?
+  examResult        ExamResult?
+  holdReason        String?
+  notes             String?
+  internalNotes     String?
+  tenantId          String
+  branchId          String?
+  createdBy         String
+  filedBy           String?
+  clearedBy         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean           @default(false)
+
+  customer          Customer          @relation(fields: [customerId], references: [id])
+  supplier          Supplier?         @relation(fields: [supplierId], references: [id])
+  broker            CustomsBroker?    @relation(fields: [brokerId], references: [id])
+  carrier           Carrier?          @relation(fields: [carrierId], references: [id])
+  vessel            Vessel?           @relation(fields: [vesselId], references: [id])
+  voyage            Voyage?           @relation(fields: [voyageId], references: [id])
+  container         Container?        @relation(fields: [containerId], references: [id])
+  shipment          Shipment?         @relation(fields: [shipmentId], references: [id])
+  job               Job?              @relation(fields: [jobId], references: [id])
+  booking           Booking?          @relation(fields: [bookingId], references: [id])
+  lines             CustomsEntryLine[]
+  documents         CustomsDocument[]
+  inspections       Inspection[]
+  fees              CustomsFee[]
+  payments          CustomsPayment[]
+  activities        Activity[]
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([customerId])
+  @@index([brokerId])
+  @@index([carrierId])
+  @@index([vesselId])
+  @@index([voyageId])
+  @@index([containerId])
+  @@index([shipmentId])
+  @@index([status])
+  @@index([type])
+  @@index([portOfEntry])
+  @@index([filingDate])
+  @@index([clearanceDate])
+  @@index([createdAt])
+}
+
+model CustomsEntryLine {
+  id                String        @id @default(cuid())
+  customsEntryId    String
+  lineNumber        Int
+  tariffCodeId      String?
+  description       String
+  quantity          Decimal       @db.Decimal(18, 4)
+  unit              String
+  weight            Decimal?      @db.Decimal(18, 4)
+  value             Decimal       @db.Decimal(18, 2)
+  originCountry     String
+  dutyRate          Decimal       @default(0) @db.Decimal(5, 4)
+  dutyAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  taxRate           Decimal       @default(0) @db.Decimal(5, 4)
+  taxAmount         Decimal       @default(0) @db.Decimal(18, 2)
+  feeAmount         Decimal       @default(0) @db.Decimal(18, 2)
+  preferentialRate  Boolean       @default(false)
+  tradeAgreementId  String?
+  isHazardous       Boolean       @default(false)
+  unNumber          String?
+  imdgClass         String?
+  packingGroup      String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customsEntry      CustomsEntry  @relation(fields: [customsEntryId], references: [id], onDelete: Cascade)
+  tariffCode        TariffCode?   @relation(fields: [tariffCodeId], references: [id])
+
+  @@schema("customs")
+  @@unique([customsEntryId, lineNumber])
+  @@index([customsEntryId])
+  @@index([tariffCodeId])
+  @@index([originCountry])
+}
+
+model TariffCode {
+  id                String        @id @default(cuid())
+  code              String
+  description       String
+  chapter           String
+  heading           String
+  subheading        String?
+  unit              String
+  dutyRate          Decimal       @db.Decimal(5, 4)
+  taxRate           Decimal       @default(0) @db.Decimal(5, 4)
+  isActive          Boolean       @default(true)
+  validFrom         DateTime
+  validUntil        DateTime?
+  parentId          String?
+  countryCode       String        @default("US")
+  notes             String?
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean       @default(false)
+
+  lines             CustomsEntryLine[]
+  tradeAgreements   TradeAgreementTariff[]
+
+  @@schema("customs")
+  @@unique([tenantId, code, countryCode])
+  @@index([tenantId])
+  @@index([countryCode])
+  @@index([chapter])
+  @@index([heading])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model TradeAgreement {
+  id                String        @id @default(cuid())
+  code              String
+  name              String
+  type              TradeAgreementType
+  countries         String[]
+  description       String?
+  isActive          Boolean       @default(true)
+  validFrom         DateTime
+  validUntil        DateTime?
+  preferentialDuty  Decimal       @default(0) @db.Decimal(5, 4)
+  rulesOfOrigin     Json?
+  certificateRequired Boolean     @default(true)
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean       @default(false)
+
+  tariffs           TradeAgreementTariff[]
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model TradeAgreementTariff {
+  id                String        @id @default(cuid())
+  tradeAgreementId  String
+  tariffCodeId      String
+  preferentialRate  Decimal       @db.Decimal(5, 4)
+  rulesOfOrigin     Json?
+  notes             String?
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tradeAgreement    TradeAgreement @relation(fields: [tradeAgreementId], references: [id], onDelete: Cascade)
+  tariffCode        TariffCode     @relation(fields: [tariffCodeId], references: [id], onDelete: Cascade)
+
+  @@schema("customs")
+  @@unique([tradeAgreementId, tariffCodeId])
+  @@index([tradeAgreementId])
+  @@index([tariffCodeId])
+}
+
+model CustomsBroker {
+  id                String        @id @default(cuid())
+  code              String
+  name              String
+  licenseNumber     String
+  licenseExpiry     DateTime?
+  contactPerson     String?
+  email             String?
+  phone             String?
+  address           Json?
+  rating            Decimal?      @db.Decimal(3, 2)
+  isActive          Boolean       @default(true)
+  isPreferred       Boolean       @default(false)
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean       @default(false)
+
+  entries           CustomsEntry[]
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@unique([tenantId, licenseNumber])
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([isPreferred])
+}
+
+model CustomsDocument {
+  id                String        @id @default(cuid())
+  customsEntryId    String
+  type              DocumentType
+  name              String
+  url               String
+  mimeType          String
+  size              Int
+  status            DocumentStatus  @default(PENDING)
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  rejectionReason   String?
+  isRequired        Boolean       @default(true)
+  sequence          Int           @default(0)
+  tenantId          String
+  uploadedBy        String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customsEntry      CustomsEntry  @relation(fields: [customsEntryId], references: [id], onDelete: Cascade)
+
+  @@schema("customs")
+  @@index([customsEntryId])
+  @@index([type])
+  @@index([status])
+}
+
+model Inspection {
+  id                String        @id @default(cuid())
+  customsEntryId    String
+  type              ExamType
+  status            InspectionStatus @default(SCHEDULED)
+  scheduledDate     DateTime?
+  completedDate     DateTime?
+  location          String?
+  officer           String?
+  agency            String?
+  result            ExamResult?
+  findings          String?
+  notes             String?
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customsEntry      CustomsEntry  @relation(fields: [customsEntryId], references: [id], onDelete: Cascade)
+
+  @@schema("customs")
+  @@index([customsEntryId])
+  @@index([type])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([completedDate])
+}
+
+model CustomsFee {
+  id                String        @id @default(cuid())
+  customsEntryId    String
+  type              FeeType
+  description       String
+  amount            Decimal       @db.Decimal(18, 2)
+  currency          String        @default("USD")
+  isPaid            Boolean       @default(false)
+  paidAt            DateTime?
+  paidBy            String?
+  dueDate           DateTime?
+  invoiceNumber     String?
+  receiptNumber     String?
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customsEntry      CustomsEntry  @relation(fields: [customsEntryId], references: [id], onDelete: Cascade)
+
+  @@schema("customs")
+  @@index([customsEntryId])
+  @@index([type])
+  @@index([isPaid])
+}
+
+model CustomsPayment {
+  id                String        @id @default(cuid())
+  customsEntryId    String
+  amount            Decimal       @db.Decimal(18, 2)
+  currency          String        @default("USD")
+  paymentDate       DateTime
+  paymentMethod     PaymentMethod
+  reference         String?
+  transactionId     String?
+  status            PaymentStatus @default(COMPLETED)
+  tenantId          String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customsEntry      CustomsEntry  @relation(fields: [customsEntryId], references: [id], onDelete: Cascade)
+
+  @@schema("customs")
+  @@index([customsEntryId])
+  @@index([paymentDate])
+  @@index([status])
+}
+
+model ComplianceRule {
+  id                String        @id @default(cuid())
+  code              String
+  name              String
+  description       String
+  entityType        ComplianceEntityType
+  entityId          String?
+  ruleType          ComplianceRuleType
+  condition         Json
+  action            Json
+  severity          ComplianceSeverity
+  priority          Int           @default(0)
+  isActive          Boolean       @default(true)
+  validFrom         DateTime?
+  validUntil        DateTime?
+  tenantId          String
+  branchId          String?
+  createdBy         String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean       @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([ruleType])
+  @@index([severity])
+  @@index([isActive])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Carrier {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Vessel {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Voyage {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Container {
+  id        String   @id @default(cuid())
+  code      String
+  number    String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([number])
+}
+
+model Shipment {
+  id        String   @id @default(cuid())
+  code      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  code      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  code      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("customs")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  customsEntryId String?
+  type      String
+  subject   String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  @@schema("customs")
+  @@index([customsEntryId])
+  @@index([tenantId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum CustomsEntryType {
+  IMPORT_DECLARATION
+  EXPORT_DECLARATION
+  TRANSIT_DECLARATION
+  TEMPORARY_IMPORT
+  BONDED_WAREHOUSE
+  RE_EXPORT
+  INWARD_PROCESSING
+  OUTWARD_PROCESSING
+  CUSTOMS_WAREHOUSE
+  FREE_ZONE
+}
+
+enum CustomsStatus {
+  NOT_STARTED
+  DOCUMENTS_PREPARING
+  DOCUMENTS_SUBMITTED
+  UNDER_REVIEW
+  QUERY_RAISED
+  QUERY_RESPONDED
+  EXAMINATION_SCHEDULED
+  EXAMINATION_COMPLETED
+  ASSESSMENT_COMPLETED
+  PAYMENT_PENDING
+  PAYMENT_COMPLETED
+  CLEARED
+  RELEASED
+  HOLD
+  SEIZED
+  REJECTED
+  CANCELLED
+  AMENDED
+}
+
+enum ExamType {
+  DOCUMENT_REVIEW
+  X_RAY
+  PHYSICAL_EXAM
+  TAILGATE
+  INTENSIVE
+  NON_INTRUSIVE
+  CANINE
+  RADIATION
+  WEIGHING
+  SAMPLING
+}
+
+enum ExamResult {
+  PASSED
+  FAILED
+  PARTIAL
+  PENDING
+  REQUIRES_FURTHER_ACTION
+}
+
+enum InspectionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum DocumentType {
+  COMMERCIAL_INVOICE
+  PACKING_LIST
+  BILL_OF_LADING
+  AIRWAY_BILL
+  CERTIFICATE_OF_ORIGIN
+  INSURANCE_CERTIFICATE
+  IMPORT_LICENSE
+  EXPORT_LICENSE
+  DANGEROUS_GOODS_DECLARATION
+  MSDS
+  PHYTOSANITARY_CERTIFICATE
+  FUMIGATION_CERTIFICATE
+  WEIGHT_CERTIFICATE
+  INSPECTION_CERTIFICATE
+  CUSTOMS_DECLARATION
+  CUSTOMS_BOND
+  POWER_OF_ATTORNEY
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  EXPIRED
+  NOT_REQUIRED
+}
+
+enum FeeType {
+  CUSTOMS_DUTY
+  IMPORT_TAX
+  EXPORT_TAX
+  VAT
+  GST
+  EXCISE_TAX
+  PROCESSING_FEE
+  BROKERAGE_FEE
+  STORAGE_FEE
+  DEMURRAGE
+  DETENTION
+  PENALTY
+  INTEREST
+  OTHER
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  CHECK
+  CASH
+  ELECTRONIC_FUNDS_TRANSFER
+  LETTER_OF_CREDIT
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIAL
+}
+
+enum TradeAgreementType {
+  FTA
+  PTA
+  CEPA
+  GSP
+  AGOA
+  USMCA
+  CPTPP
+  RCEP
+  EU_JAPAN
+  EU_CANADA
+  EU_SINGAPORE
+  EU_VIETNAM
+  EU_MERCOSUR
+  BILATERAL
+  MULTILATERAL
+  OTHER
+}
+
+enum ComplianceEntityType {
+  CUSTOMS_ENTRY
+  TARIFF_CODE
+  TRADE_AGREEMENT
+  CUSTOMS_BROKER
+  SHIPMENT
+  CUSTOMER
+  SUPPLIER
+  CARRIER
+  VESSEL
+  VOYAGE
+}
+
+enum ComplianceRuleType {
+  DOCUMENT_REQUIRED
+  LICENSE_REQUIRED
+  RESTRICTED_COUNTRY
+  RESTRICTED_PARTY
+  RESTRICTED_COMMODITY
+  VALUE_THRESHOLD
+  WEIGHT_THRESHOLD
+  QUANTITY_LIMIT
+  LABELING_REQUIREMENT
+  CERTIFICATION_REQUIRED
+  QUOTA_LIMIT
+  EMBARGO_CHECK
+  SANCTIONS_CHECK
+  DUAL_USE_CHECK
+  CUSTOM
+}
+
+enum ComplianceSeverity {
+  INFO
+  WARNING
+  ERROR
+  BLOCKING
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}

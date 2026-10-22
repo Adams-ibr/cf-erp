@@ -1,0 +1,646 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["demurrage", "public"]
+}
+
+model DemurrageCharge {
+  id              String           @id @default(cuid())
+  code            String
+  containerId     String
+  containerNumber String
+  type            DemurrageType
+  status          ChargeStatus     @default(PENDING)
+  location        String
+  depotId         String?
+  terminalId      String?
+  vesselId        String?
+  voyageId        String?
+  bookingId       String?
+  shipmentId      String?
+  customerId      String
+  carrierId       String?
+  freeDays        Int
+  usedDays        Int
+  chargeableDays  Int
+  dailyRate       Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  totalAmount     Decimal          @db.Decimal(12, 2)
+  waivedAmount    Decimal          @default(0) @db.Decimal(12, 2)
+  netAmount       Decimal          @db.Decimal(12, 2)
+  startDate       DateTime
+  endDate         DateTime?
+  invoiceId       String?
+  invoiceDate     DateTime?
+  paidDate        DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(12, 2)
+  balanceAmount   Decimal          @db.Decimal(12, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  waivers         DemurrageWaiver[]
+  disputes        DemurrageDispute[]
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([containerId])
+  @@index([containerNumber])
+  @@index([type])
+  @@index([status])
+  @@index([customerId])
+  @@index([carrierId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([invoiceId])
+}
+
+model DetentionCharge {
+  id              String           @id @default(cuid())
+  code            String
+  containerId     String
+  containerNumber String
+  type            DetentionType
+  status          ChargeStatus     @default(PENDING)
+  location        String
+  depotId         String?
+  terminalId      String?
+  vesselId        String?
+  voyageId        String?
+  bookingId       String?
+  shipmentId      String?
+  customerId      String
+  carrierId       String?
+  freeDays        Int
+  usedDays        Int
+  chargeableDays  Int
+  dailyRate       Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  totalAmount     Decimal          @db.Decimal(12, 2)
+  waivedAmount    Decimal          @default(0) @db.Decimal(12, 2)
+  netAmount       Decimal          @db.Decimal(12, 2)
+  startDate       DateTime
+  endDate         DateTime?
+  invoiceId       String?
+  invoiceDate     DateTime?
+  paidDate        DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(12, 2)
+  balanceAmount   Decimal          @db.Decimal(12, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  waivers         DetentionWaiver[]
+  disputes        DetentionDispute[]
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([containerId])
+  @@index([containerNumber])
+  @@index([type])
+  @@index([status])
+  @@index([customerId])
+  @@index([carrierId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([invoiceId])
+}
+
+model StorageCharge {
+  id              String           @id @default(cuid())
+  code            String
+  containerId     String
+  containerNumber String
+  type            StorageType
+  status          ChargeStatus     @default(PENDING)
+  location        String
+  warehouseId     String?
+  depotId         String?
+  terminalId      String?
+  vesselId        String?
+  voyageId        String?
+  bookingId       String?
+  shipmentId      String?
+  customerId      String
+  carrierId       String?
+  freeDays        Int
+  usedDays        Int
+  chargeableDays  Int
+  dailyRate       Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  totalAmount     Decimal          @db.Decimal(12, 2)
+  waivedAmount    Decimal          @default(0) @db.Decimal(12, 2)
+  netAmount       Decimal          @db.Decimal(12, 2)
+  startDate       DateTime
+  endDate         DateTime?
+  invoiceId       String?
+  invoiceDate     DateTime?
+  paidDate        DateTime?
+  paidAmount      Decimal          @default(0) @db.Decimal(12, 2)
+  balanceAmount   Decimal          @db.Decimal(12, 2)
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  waivers         StorageWaiver[]
+  disputes        StorageDispute[]
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([containerId])
+  @@index([containerNumber])
+  @@index([type])
+  @@index([status])
+  @@index([customerId])
+  @@index([carrierId])
+  @@index([warehouseId])
+  @@index([depotId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([invoiceId])
+}
+
+model DemurrageWaiver {
+  id              String           @id @default(cuid())
+  demurrageChargeId String
+  code            String
+  type            WaiverType
+  status          WaiverStatus     @default(PENDING)
+  reason          String
+  waivedDays      Int
+  waivedAmount    Decimal          @db.Decimal(12, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  validFrom       DateTime
+  validUntil      DateTime
+  conditions      Json?
+  supportingDocs  String[]         @default([])
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  demurrageCharge DemurrageCharge  @relation(fields: [demurrageChargeId], references: [id], onDelete: Cascade)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([demurrageChargeId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([approvedBy])
+}
+
+model DetentionWaiver {
+  id              String           @id @default(cuid())
+  detentionChargeId String
+  code            String
+  type            WaiverType
+  status          WaiverStatus     @default(PENDING)
+  reason          String
+  waivedDays      Int
+  waivedAmount    Decimal          @db.Decimal(12, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  validFrom       DateTime
+  validUntil      DateTime
+  conditions      Json?
+  supportingDocs  String[]         @default([])
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  detentionCharge DetentionCharge  @relation(fields: [detentionChargeId], references: [id], onDelete: Cascade)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([detentionChargeId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([approvedBy])
+}
+
+model StorageWaiver {
+  id              String           @id @default(cuid())
+  storageChargeId String
+  code            String
+  type            WaiverType
+  status          WaiverStatus     @default(PENDING)
+  reason          String
+  waivedDays      Int
+  waivedAmount    Decimal          @db.Decimal(12, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  validFrom       DateTime
+  validUntil      DateTime
+  conditions      Json?
+  supportingDocs  String[]         @default([])
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  storageCharge   StorageCharge    @relation(fields: [storageChargeId], references: [id], onDelete: Cascade)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([storageChargeId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([approvedBy])
+}
+
+model DemurrageDispute {
+  id              String           @id @default(cuid())
+  demurrageChargeId String
+  code            String
+  type            DisputeType
+  status          DisputeStatus    @default(OPEN)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(12, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  assignedTo      String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      DisputeResolution?
+  resolutionAmount Decimal?        @db.Decimal(12, 2)
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  demurrageCharge DemurrageCharge  @relation(fields: [demurrageChargeId], references: [id], onDelete: Cascade)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([demurrageChargeId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+  @@index([resolvedBy])
+}
+
+model DetentionDispute {
+  id              String           @id @default(cuid())
+  detentionChargeId String
+  code            String
+  type            DisputeType
+  status          DisputeStatus    @default(OPEN)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(12, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  assignedTo      String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      DisputeResolution?
+  resolutionAmount Decimal?        @db.Decimal(12, 2)
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  detentionCharge DetentionCharge  @relation(fields: [detentionChargeId], references: [id], onDelete: Cascade)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([detentionChargeId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+  @@index([resolvedBy])
+}
+
+model StorageDispute {
+  id              String           @id @default(cuid())
+  storageChargeId String
+  code            String
+  type            DisputeType
+  status          DisputeStatus    @default(OPEN)
+  reason          String
+  claimedAmount   Decimal          @db.Decimal(12, 2)
+  currency        String           @default("USD")
+  requestedBy     String
+  assignedTo      String?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      DisputeResolution?
+  resolutionAmount Decimal?        @db.Decimal(12, 2)
+  evidence        String[]         @default([])
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  storageCharge   StorageCharge    @relation(fields: [storageChargeId], references: [id], onDelete: Cascade)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([storageChargeId])
+  @@index([status])
+  @@index([type])
+  @@index([assignedTo])
+  @@index([resolvedBy])
+}
+
+model ChargeRate {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            RateType
+  chargeType      ChargeRateType
+  location        String
+  depotId         String?
+  terminalId      String?
+  carrierId       String?
+  containerType   ContainerType?
+  containerSize   ContainerSize?
+  freeDays        Int
+  dailyRate       Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  tierRates       Json?
+  seasonalRates   Json?
+  validFrom       DateTime
+  validUntil      DateTime?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([chargeType])
+  @@index([carrierId])
+  @@index([containerType])
+  @@index([containerSize])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model ChargeWaiverRule {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            WaiverType
+  chargeType      ChargeRateType
+  condition       Json
+  action          Json
+  priority        Int              @default(0)
+  isActive        Boolean          @default(true)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([chargeType])
+  @@index([isActive])
+}
+
+model FreeTimeRule {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  chargeType      ChargeRateType
+  carrierId       String?
+  location        String
+  terminalId      String?
+  containerType   ContainerType?
+  containerSize   ContainerSize?
+  commodity       String?
+  tradeLane       String?
+  freeDays        Int
+  conditions      Json?
+  isActive        Boolean          @default(true)
+  validFrom       DateTime
+  validUntil      DateTime?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([chargeType])
+  @@index([carrierId])
+  @@index([location])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model Container {
+  id              String   @id @default(cuid())
+  code            String
+  number          String   @unique
+  tenantId        String
+  isDeleted       Boolean  @default(false)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([number])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Carrier {
+  id        String   @id @default(cuid())
+  code      String
+  name      String
+  tenantId  String
+  isDeleted Boolean  @default(false)
+
+  @@schema("demurrage")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+enum DemurrageType {
+  IMPORT
+  EXPORT
+  TRANSIT
+  REPOSITIONING
+}
+
+enum DetentionType {
+  IMPORT
+  EXPORT
+  TRANSIT
+  REPOSITIONING
+}
+
+enum StorageType {
+  WAREHOUSE
+  DEPOT
+  TERMINAL
+  CFS
+  ICD
+  BONDED_WAREHOUSE
+}
+
+enum ChargeStatus {
+  PENDING
+  CALCULATING
+  CALCULATED
+  INVOICED
+  PARTIAL_PAID
+  PAID
+  OVERDUE
+  DISPUTED
+  WAIVED
+  CANCELLED
+  EXPIRED
+}
+
+enum ChargeRateType {
+  DEMURRAGE
+  DETENTION
+  STORAGE
+}
+
+enum WaiverType {
+  CARRIER_WAIVER
+  CUSTOMER_WAIVER
+  FORCE_MAJEURE
+  CUSTOMS_HOLD
+  DOCUMENT_DELAY
+  EQUIPMENT_ISSUE
+  WEATHER
+  PORT_CONGESTION
+  STRIKE
+  HOLIDAY
+  CUSTOMER_SERVICE
+  NEGOTIATED
+  OTHER
+}
+
+enum WaiverStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+  REVOKED
+}
+
+enum DisputeType {
+  RATE_DISPUTE
+  DAYS_DISPUTE
+  FREE_TIME_DISPUTE
+  WAIVER_DISPUTE
+  CALCULATION_ERROR
+  DOCUMENTATION
+  CONTRACT_TERMS
+  FORCE_MAJEURE
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  NEGOTIATING
+  RESOLVED
+  ESCALATED
+  CLOSED
+  WITHDRAWN
+}
+
+enum DisputeResolution {
+  FULL_WAIVER
+  PARTIAL_WAIVER
+  RATE_ADJUSTMENT
+  DAYS_ADJUSTMENT
+  ORIGINAL_UPHELD
+  SPLIT_DIFFERENCE
+  SETTLED
+}
+
+enum ContainerType {
+  DRY_20FT
+  DRY_40FT
+  DRY_40FT_HC
+  DRY_45FT_HC
+  REEFER_20FT
+  REEFER_40FT
+  REEFER_40FT_HC
+  OPEN_TOP_20FT
+  OPEN_TOP_40FT
+  FLAT_RACK_20FT
+  FLAT_RACK_40FT
+  TANK_20FT
+  TANK_40FT
+  SPECIAL
+}
+
+enum ContainerSize {
+  SIZE_20FT
+  SIZE_40FT
+  SIZE_45FT
+}

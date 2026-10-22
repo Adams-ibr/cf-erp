@@ -1,0 +1,618 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["reports", "public"]
+}
+
+model Report {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  type            ReportType
+  category        String?
+  status          ReportStatus     @default(DRAFT)
+  template        Json
+  query           Json?
+  parameters      Json?
+  schedule        ReportSchedule?
+  outputFormat    OutputFormat[]   @default(["PDF"])
+  isPublic        Boolean          @default(false)
+  tags            String[]         @default([])
+  version         Int              @default(1)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  runCount        Int              @default(0)
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  executions      ReportExecution[]
+  subscriptions   ReportSubscription[]
+  alerts          ReportAlert[]
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+  @@index([isPublic])
+  @@index([createdBy])
+}
+
+model ReportExecution {
+  id              String           @id @default(cuid())
+  reportId        String
+  status          ExecutionStatus  @default(PENDING)
+  parameters      Json?
+  outputFormat    OutputFormat
+  fileUrl         String?
+  fileSize        BigInt?
+  rowCount        Int?
+  startedAt       DateTime
+  completedAt     DateTime?
+  errorMessage    String?
+  errorStack      String?
+  executedBy      String?
+  scheduled       Boolean          @default(false)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  report          Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@schema("reports")
+  @@index([reportId])
+  @@index([status])
+  @@index([executedBy])
+  @@index([createdAt])
+}
+
+model ReportSchedule {
+  id              String   @id @default(cuid())
+  reportId        String   @unique
+  cronExpression  String
+  timezone        String   @default("UTC")
+  parameters      Json?
+  outputFormats   OutputFormat[]
+  isActive        Boolean  @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  runCount        Int      @default(0)
+  maxRuns         Int?
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  report          Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@schema("reports")
+  @@index([reportId])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+model ReportSubscription {
+  id              String           @id @default(cuid())
+  reportId        String
+  userId          String
+  frequency       SubscriptionFrequency
+  channels        NotificationChannel[]
+  parameters      Json?
+  isActive        Boolean          @default(true)
+  lastSentAt      DateTime?
+  nextSendAt      DateTime?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  report          Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@schema("reports")
+  @@unique([reportId, userId])
+  @@index([reportId])
+  @@index([userId])
+  @@index([isActive])
+}
+
+model ReportAlert {
+  id              String           @id @default(cuid())
+  reportId        String
+  code            String
+  name            String
+  condition       Json
+  threshold       Json
+  severity        AlertSeverity
+  channels        NotificationChannel[]
+  isActive        Boolean          @default(true)
+  lastTriggeredAt DateTime?
+  triggerCount    Int              @default(0)
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  report          Report           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([reportId])
+  @@index([isActive])
+}
+
+model Dashboard {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  layout          Json
+  widgets         Json
+  filters         Json?
+  isPublic        Boolean          @default(false)
+  isDefault       Boolean          @default(false)
+  refreshInterval Int              @default(300)
+  theme           String           @default("light")
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  widgets         DashboardWidget[]
+  favorites       DashboardFavorite[]
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isPublic])
+  @@index([isDefault])
+}
+
+model DashboardWidget {
+  id              String   @id @default(cuid())
+  dashboardId     String
+  widgetId        String
+  type            WidgetType
+  title           String
+  config          Json
+  position        Json
+  size            Json
+  dataSource      String?
+  query           Json?
+  refreshInterval Int?
+  isVisible       Boolean  @default(true)
+  order           Int      @default(0)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  dashboard       Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@schema("reports")
+  @@unique([dashboardId, widgetId])
+  @@index([dashboardId])
+  @@index([widgetId])
+  @@index([type])
+}
+
+model DashboardFavorite {
+  id          String   @id @default(cuid())
+  dashboardId String
+  userId      String
+  tenantId    String
+  createdAt   DateTime @default(now())
+
+  @@schema("reports")
+  @@unique([dashboardId, userId])
+  @@index([dashboardId])
+  @@index([userId])
+}
+
+model DataSource {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  type            DataSourceType
+  description     String?
+  config          Json
+  credentials     Json?
+  isActive        Boolean          @default(true)
+  isDefault       Boolean          @default(false)
+  testQuery       String?
+  lastTestAt      DateTime?
+  lastTestStatus  TestStatus?
+  lastTestError   String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([type])
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+model Dataset {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  sourceType      DataSourceType
+  sourceConfig    Json
+  query           String?
+  schema          Json?
+  refreshPolicy   RefreshPolicy?
+  lastRefreshedAt DateTime?
+  nextRefreshAt   DateTime?
+  rowCount        BigInt?
+  sizeBytes       BigInt?
+  status          DatasetStatus    @default(BUILDING)
+  lastError       String?
+  tags            String[]         @default([])
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([lastRefreshedAt])
+}
+
+model KPI {
+  id              String           @id @default(cuid())
+  code            String
+  name            String
+  description     String?
+  formula         String
+  unit            String
+  target          Decimal?         @db.Decimal(18, 2)
+  warningThreshold Decimal?        @db.Decimal(18, 2)
+  criticalThreshold Decimal?       @db.Decimal(18, 2)
+  trendDirection  TrendDirection?
+  format          KPIFormat        @default(NUMBER)
+  decimalPlaces   Int              @default(2)
+  color           String?
+  category        String?
+  isActive        Boolean          @default(true)
+  tenantId        String
+  branchId        String?
+  createdBy       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  values          KPIValue[]
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model KPIValue {
+  id              String           @id @default(cuid())
+  kpiId           String
+  value           Decimal          @db.Decimal(18, 4)
+  period          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  dimensions      Json?
+  computedAt      DateTime         @default(now())
+  tenantId        String
+  createdAt       DateTime         @default(now())
+
+  kpi             KPI              @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@schema("reports")
+  @@unique([kpiId, period, periodStart])
+  @@index([kpiId])
+  @@index([period])
+  @@index([periodStart])
+}
+
+model ExportJob {
+  id              String           @id @default(cuid())
+  code            String
+  type            ExportType
+  sourceType      String
+  sourceId        String
+  format          ExportFormat
+  parameters      Json?
+  status          ExportStatus     @default(PENDING)
+  fileUrl         String?
+  fileSize        BigInt?
+  rowCount        Int?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?
+  requestedBy     String
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@schema("reports")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([createdAt])
+}
+
+enum ReportType {
+  STANDARD
+  AD_HOC
+  SCHEDULED
+  BURST
+  BURST_DETAIL
+  SUB_REPORT
+  DRILL_THROUGH
+  SUMMARY
+  DETAIL
+  MATRIX
+  CHART
+  MAP
+  GAUGE
+  KPI
+  LIST
+  TABLE
+  CROSSTAB
+  SUBTOTAL
+  GRAND_TOTAL
+}
+
+enum ReportStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+  DEPRECATED
+  ERROR
+}
+
+enum ExecutionStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  PARTIAL
+}
+
+enum OutputFormat {
+  PDF
+  EXCEL
+  CSV
+  HTML
+  JSON
+  XML
+  PPTX
+  DOCX
+  PNG
+  JPEG
+  SVG
+  TXT
+  RTF
+}
+
+enum SubscriptionFrequency {
+  REAL_TIME
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ON_CHANGE
+  ON_THRESHOLD
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+  WEBHOOK
+  SLACK
+  TEAMS
+  WHATSAPP
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+enum WidgetType {
+  CHART_LINE
+  CHART_BAR
+  CHART_PIE
+  CHART_DOUGHNUT
+  CHART_AREA
+  CHART_SCATTER
+  CHART_BUBBLE
+  CHART_RADAR
+  CHART_GAUGE
+  CHART_KPI
+  CHART_TABLE
+  CHART_PIVOT
+  CHART_MAP
+  CHART_FUNNEL
+  CHART_WATERFALL
+  CHART_BULLET
+  CHART_HEATMAP
+  CHART_TREEMAP
+  CHART_SANKEY
+  CHART_GANTT
+  CHART_CALENDAR
+  TEXT
+  IMAGE
+  IFRAME
+  HTML
+  MARKDOWN
+  KPI_CARD
+  PROGRESS_BAR
+  LIST
+  TREE
+  FILTER
+  PARAMETER
+  BUTTON
+  LINK
+  TAB
+  CONTAINER
+}
+
+enum DataSourceType {
+  POSTGRESQL
+  MYSQL
+  SQLSERVER
+  ORACLE
+  MONGO
+  ELASTICSEARCH
+  REDIS
+  CASSANDRA
+  SNOWFLAKE
+  BIGQUERY
+  REDSHIFT
+  ATHENA
+  CLICKHOUSE
+  TIMESCALEDB
+  INFLUXDB
+  PROMETHEUS
+  GRAPHITE
+  REST_API
+  GRAPHQL
+  SOAP
+  ODATA
+  CSV
+  EXCEL
+  PARQUET
+  AVRO
+  ORC
+  JSON
+  XML
+  FTP
+  SFTP
+  S3
+  GCS
+  AZURE_BLOB
+  HDFS
+  KAFKA
+  RABBITMQ
+  PULSAR
+  MQTT
+  CUSTOM
+}
+
+enum DataSourceType {
+  QUERY
+  STORED_PROCEDURE
+  VIEW
+  TABLE
+  API
+  FILE
+  CACHE
+  COMPUTED
+}
+
+enum RefreshPolicy {
+  REAL_TIME
+  ON_DEMAND
+  SCHEDULED
+  INCREMENTAL
+  FULL
+  CDC
+  MATERIALIZED_VIEW
+}
+
+enum DatasetStatus {
+  BUILDING
+  READY
+  STALE
+  ERROR
+  ARCHIVED
+  DELETED
+}
+
+enum TestStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  TIMEOUT
+}
+
+enum ExportType {
+  REPORT
+  DASHBOARD
+  DATASET
+  KPI
+  RAW_DATA
+  SCHEMA
+}
+
+enum ExportFormat {
+  PDF
+  EXCEL
+  CSV
+  JSON
+  XML
+  PARQUET
+  AVRO
+  ORC
+  HTML
+  PPTX
+  DOCX
+}
+
+enum ExportStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum TrendDirection {
+  UP
+  DOWN
+  STABLE
+  VOLATILE
+}
+
+enum KPIFormat {
+  NUMBER
+  CURRENCY
+  PERCENTAGE
+  DURATION
+  COUNT
+  RATE
+  RATIO
+  SCORE
+}

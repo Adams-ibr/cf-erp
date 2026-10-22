@@ -1,0 +1,534 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["container", "public"]
+}
+
+model Container {
+  id              String           @id @default(cuid())
+  code            String
+  number          String           @unique
+  type            ContainerType
+  size            ContainerSize
+  status          ContainerStatus  @default(AVAILABLE)
+  owner           String?
+  operator        String?
+  manufacturer    String?
+  manufactureDate DateTime?
+  lastInspection  DateTime?
+  nextInspection  DateTime?
+  cscExpiry       DateTime?
+  tareWeight      Decimal?         @db.Decimal(10, 2)
+  maxPayload      Decimal?         @db.Decimal(10, 2)
+  maxGrossWeight  Decimal?         @db.Decimal(10, 2)
+  volume          Decimal?         @db.Decimal(10, 2)
+  dimensions      Json?
+  currentLocation String?
+  currentDepotId  String?
+  currentVesselId String?
+  currentVoyageId String?
+  currentCustomerId String?
+  temperatureControlled Boolean   @default(false)
+  temperatureRange Json?
+  specialFeatures Json?
+  notes           String?
+  tenantId        String
+  branchId        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  isDeleted       Boolean          @default(false)
+  createdBy       String?
+  updatedBy       String?
+
+  typeRef         ContainerTypeRef @relation(fields: [type], references: [code])
+  movements       ContainerMovement[]
+  inspections     ContainerInspection[]
+  repairs         ContainerRepair[]
+  leases          ContainerLease[]
+  sales           ContainerSale[]
+
+  @@schema("container")
+  @@unique([tenantId, code])
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([type])
+  @@index([status])
+  @@index([owner])
+  @@index([operator])
+  @@index([currentDepotId])
+  @@index([currentVesselId])
+  @@index([currentVoyageId])
+  @@index([currentCustomerId])
+  @@index([cscExpiry])
+  @@index([nextInspection])
+}
+
+model ContainerTypeRef {
+  code            String   @id
+  name            String
+  description     String?
+  isoCode         String?
+  length          Decimal  @db.Decimal(5, 2)
+  width           Decimal  @db.Decimal(5, 2)
+  height          Decimal  @db.Decimal(5, 2)
+  maxGrossWeight  Decimal  @db.Decimal(10, 2)
+  tareWeight      Decimal  @db.Decimal(10, 2)
+  maxPayload      Decimal  @db.Decimal(10, 2)
+  volume          Decimal  @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  containers      Container[]
+
+  @@schema("container")
+  @@index([code])
+  @@index([isActive])
+}
+
+model ContainerMovement {
+  id              String           @id @default(cuid())
+  containerId     String
+  type            MovementType
+  fromLocation    String
+  toLocation      String
+  fromDepotId     String?
+  toDepotId       String?
+  vesselId        String?
+  voyageId        String?
+  bookingId       String?
+  shipmentId      String?
+  customerId      String?
+  startTime       DateTime
+  endTime         DateTime?
+  status          MovementStatus   @default(PLANNED)
+  equipmentUsed   String?
+  operator        String?
+  sealNumbers     String[]         @default([])
+  sealCondition   SealCondition?
+  temperature     Decimal?         @db.Decimal(5, 2)
+  humidity        Decimal?         @db.Decimal(5, 2)
+  gpsCoordinates  Json?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  container       Container        @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@schema("container")
+  @@index([containerId])
+  @@index([type])
+  @@index([status])
+  @@index([fromDepotId])
+  @@index([toDepotId])
+  @@index([vesselId])
+  @@index([voyageId])
+  @@index([bookingId])
+  @@index([shipmentId])
+  @@index([customerId])
+  @@index([startTime])
+}
+
+model ContainerInspection {
+  id              String           @id @default(cuid())
+  containerId     String
+  type            InspectionType
+  status          InspectionStatus @default(SCHEDULED)
+  inspector       String
+  inspectorId     String?
+  inspectionDate  DateTime
+  location        String
+  depotId         String?
+  result          InspectionResult?
+  findings        String?
+  photos          String[]         @default([])
+  documents       String[]         @default([])
+  nextInspectionDate DateTime?
+  cost            Decimal?         @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  container       Container        @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  repairOrders    ContainerRepair[]
+
+  @@schema("container")
+  @@index([containerId])
+  @@index([type])
+  @@index([status])
+  @@index([inspectionDate])
+  @@index([inspectorId])
+  @@index([depotId])
+}
+
+model ContainerRepair {
+  id              String           @id @default(cuid())
+  containerId     String
+  inspectionId    String?
+  type            RepairType
+  status          RepairStatus     @default(QUOTED)
+  title           String
+  description     String?
+  estimatedCost   Decimal?         @db.Decimal(10, 2)
+  actualCost      Decimal?         @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  vendor          String?
+  vendorContact   String?
+  partsRequired   Json?
+  laborHours      Decimal?         @db.Decimal(5, 2)
+  priority        RepairPriority   @default(NORMAL)
+  scheduledStart  DateTime?
+  actualStart     DateTime?
+  completedAt     DateTime?
+  warrantyUntil   DateTime?
+  notes           String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  container       Container        @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  inspection      ContainerInspection? @relation(fields: [inspectionId], references: [id])
+
+  @@schema("container")
+  @@index([containerId])
+  @@index([inspectionId])
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledStart])
+  @@index([completedAt])
+}
+
+model ContainerLease {
+  id              String           @id @default(cuid())
+  containerId     String
+  lesseeId        String
+  lesseeName      String
+  type            LeaseType
+  status          LeaseStatus      @default(ACTIVE)
+  startDate       DateTime
+  endDate         DateTime?
+  autoRenew       Boolean          @default(false)
+  monthlyRate     Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  securityDeposit Decimal?         @db.Decimal(10, 2)
+  insuranceRequired Boolean        @default(true)
+  insuranceValue  Decimal?         @db.Decimal(10, 2)
+  terms           String?
+  terminationNotice Int            @default(30)
+  earlyTerminationFee Decimal?     @db.Decimal(10, 2)
+  pickupLocation  String
+  returnLocation  String?
+  conditionAtStart String?
+  conditionAtEnd   String?
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  container       Container        @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  payments        LeasePayment[]
+
+  @@schema("container")
+  @@index([containerId])
+  @@index([lesseeId])
+  @@index([status])
+  @@index([type])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model LeasePayment {
+  id              String       @id @default(cuid())
+  leaseId         String
+  amount          Decimal      @db.Decimal(10, 2)
+  currency        String       @default("USD")
+  dueDate         DateTime
+  paidDate        DateTime?
+  status          PaymentStatus @default(PENDING)
+  paymentMethod   String?
+  transactionId   String?
+  receiptNumber   String?
+  notes           String?
+  tenantId        String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  lease           ContainerLease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@schema("container")
+  @@index([leaseId])
+  @@index([dueDate])
+  @@index([paidDate])
+  @@index([status])
+}
+
+model ContainerSale {
+  id              String           @id @default(cuid())
+  containerId     String
+  buyerId         String
+  buyerName       String
+  status          SaleStatus       @default(NEGOTIATING)
+  salePrice       Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  depositAmount   Decimal?         @db.Decimal(10, 2)
+  depositPaid     Boolean          @default(false)
+  saleDate        DateTime?
+  deliveryDate    DateTime?
+  deliveryLocation String?
+  warrantyTerms   String?
+  commissionRate  Decimal?         @db.Decimal(5, 2)
+  commissionAmount Decimal?        @db.Decimal(10, 2)
+  documents       String[]         @default([])
+  metadata        Json?
+  tenantId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  container       Container        @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@schema("container")
+  @@index([containerId])
+  @@index([buyerId])
+  @@index([status])
+  @@index([saleDate])
+}
+
+model Depot {
+  id              String   @id @default(cuid())
+  code            String
+  name            String
+  address         Json
+  contact         Json?
+  capacity        Int?
+  operatingHours  Json?
+  timezone        String   @default("UTC")
+  services        String[] @default([])
+  isActive        Boolean  @default(true)
+  tenantId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("container")
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model ContainerDocument {
+  id              String   @id @default(cuid())
+  containerId     String
+  type            String
+  name            String
+  url             String
+  mimeType        String
+  size            BigInt
+  tenantId        String
+  createdAt       DateTime @default(now())
+
+  @@schema("container")
+  @@index([containerId])
+  @@index([tenantId])
+}
+
+enum ContainerType {
+  DRY_20FT
+  DRY_40FT
+  DRY_40FT_HC
+  DRY_45FT_HC
+  REEFER_20FT
+  REEFER_40FT
+  REEFER_40FT_HC
+  OPEN_TOP_20FT
+  OPEN_TOP_40FT
+  FLAT_RACK_20FT
+  FLAT_RACK_40FT
+  TANK_20FT
+  TANK_40FT
+  SPECIAL
+}
+
+enum ContainerSize {
+  SIZE_20FT
+  SIZE_40FT
+  SIZE_45FT
+}
+
+enum ContainerStatus {
+  AVAILABLE
+  BOOKED
+  PICKED_UP
+  IN_YARD
+  LOADING
+  LOADED
+  ON_VESSEL
+  IN_TRANSIT
+  ARRIVED
+  UNLOADING
+  UNLOADED
+  DELIVERED
+  EMPTY_RETURN
+  DAMAGED
+  MAINTENANCE
+  INSPECTION
+  REPAIR
+  SOLD
+  SCRAPPED
+  LEASED
+  LOST
+  STOLEN
+}
+
+enum MovementType {
+  PICKUP
+  DROP_OFF
+  GATE_IN
+  GATE_OUT
+  LOADING
+  UNLOADING
+  TRANSFER
+  REPOSITIONING
+  REPAIR_MOVE
+  INSPECTION_MOVE
+  CUSTOMS_MOVE
+  EMERGENCY_MOVE
+}
+
+enum MovementStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DELAYED
+  ON_HOLD
+}
+
+enum SealCondition {
+  INTACT
+  BROKEN
+  MISSING
+  TAMPERED
+  REPLACED
+}
+
+enum InspectionType {
+  PRE_TRIP
+  POST_TRIP
+  PERIODIC
+  CSC
+  PRE_REPAIR
+  POST_REPAIR
+  PRE_LEASE
+  POST_LEASE
+  PRE_SALE
+  DAMAGE_ASSESSMENT
+  CUSTOMS
+  REGULATORY
+}
+
+enum InspectionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+  PASSED
+  FAILED_CRITICAL
+  REQUIRES_REPAIR
+}
+
+enum InspectionResult {
+  PASS
+  PASS_WITH_NOTES
+  FAIL
+  FAIL_CRITICAL
+  CONDITIONAL_PASS
+}
+
+enum RepairType {
+  STRUCTURAL
+  FLOOR
+  DOOR
+  ROOF
+  SIDE_WALL
+  FRONT_WALL
+  REEFER_UNIT
+  ELECTRICAL
+  PLUMBING
+  PAINTING
+  CLEANING
+  MODIFICATION
+  REFURBISHMENT
+}
+
+enum RepairStatus {
+  QUOTED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+  WARRANTY_CLAIM
+}
+
+enum RepairPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  EMERGENCY
+}
+
+enum LeaseType {
+  OPERATING_LEASE
+  FINANCE_LEASE
+  MASTER_LEASE
+  SHORT_TERM
+  LONG_TERM
+  ONE_WAY
+  ROUND_TRIP
+}
+
+enum LeaseStatus {
+  DRAFT
+  NEGOTIATING
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  RENEWED
+  DEFAULTED
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  PARTIAL
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum SaleStatus {
+  NEGOTIATING
+  AGREED
+  CONTRACT_SIGNED
+  DEPOSIT_PAID
+  COMPLETED
+  DELIVERED
+  CANCELLED
+  DISPUTED
+}
